@@ -2,7 +2,8 @@
 
 Run inside Unreal Editor with Python Editor Script Plugin enabled.
 The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, adds a basic
-lighting rig if missing, runs the NAV anchor generator, and saves the level.
+lighting rig if missing, runs the NAV anchor generator, optionally adds the
+verified campus geometry visualization actor, and saves the level.
 """
 
 import os
@@ -73,10 +74,43 @@ def _run_anchor_generator():
         exec(compile(handle.read(), path, "exec"), namespace)
 
 
+def _ensure_geometry_actor():
+    config_path = os.path.join(
+        unreal.Paths.project_dir(),
+        "Config",
+        "InterVerseCampusGeometry.local.json",
+    )
+    if not os.path.exists(config_path):
+        unreal.log_warning(
+            "InterVerseSG geometry config is not built yet. Run "
+            "python Scripts/build_campus_geometry.py outside Unreal first."
+        )
+        return
+
+    actor_class = getattr(unreal, "InterVerseCampusGeometryActor", None)
+    if actor_class is None:
+        unreal.log_warning(
+            "InterVerseCampusGeometryActor C++ class is unavailable. Compile the project, "
+            "then rerun the bootstrap."
+        )
+        return
+
+    actor = _ensure_actor(
+        actor_class,
+        "IV_CampusGeometry",
+        unreal.Vector(0.0, 0.0, 0.0),
+    )
+    try:
+        actor.rebuild_geometry()
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG geometry rebuild warning: {}".format(exc))
+
+
 def bootstrap():
     _ensure_level()
     _ensure_environment()
     _run_anchor_generator()
+    _ensure_geometry_actor()
     unreal.EditorLevelLibrary.save_current_level()
     unreal.log("InterVerseSG bootstrap complete: {}".format(LEVEL_PATH))
 
