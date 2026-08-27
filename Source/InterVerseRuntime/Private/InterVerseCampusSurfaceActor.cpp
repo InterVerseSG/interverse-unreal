@@ -9,7 +9,7 @@
 
 namespace
 {
-bool ReadPoint2D(const TSharedPtr<FJsonValue>& Value, FVector2D& OutPoint)
+bool ReadPoint3D(const TSharedPtr<FJsonValue>& Value, FVector& OutPoint)
 {
     const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
     if (!Value.IsValid() || !Value->TryGetArray(Values) || !Values || Values->Num() < 2)
@@ -19,12 +19,17 @@ bool ReadPoint2D(const TSharedPtr<FJsonValue>& Value, FVector2D& OutPoint)
 
     double X = 0.0;
     double Y = 0.0;
+    double Z = 0.0;
     if (!(*Values)[0]->TryGetNumber(X) || !(*Values)[1]->TryGetNumber(Y))
     {
         return false;
     }
+    if (Values->Num() >= 3)
+    {
+        (*Values)[2]->TryGetNumber(Z);
+    }
 
-    OutPoint = FVector2D(static_cast<float>(X), static_cast<float>(Y));
+    OutPoint = FVector(static_cast<float>(X), static_cast<float>(Y), static_cast<float>(Z));
     return true;
 }
 }
@@ -71,7 +76,7 @@ bool AInterVerseCampusSurfaceActor::RebuildSurfaces()
     const bool bBuilt = ParseAndBuild(JsonText);
     if (bBuilt)
     {
-        UE_LOG(LogTemp, Log, TEXT("InterVerseSG: campus circulation surfaces rebuilt from %s"), *AbsolutePath);
+        UE_LOG(LogTemp, Log, TEXT("InterVerseSG: terrain-following campus circulation surfaces rebuilt from %s"), *AbsolutePath);
     }
     return bBuilt;
 }
@@ -90,7 +95,7 @@ float AInterVerseCampusSurfaceActor::WidthForCategory(const FString& Category) c
 }
 
 void AInterVerseCampusSurfaceActor::AddPolylineRibbon(
-    const TArray<FVector2D>& Points,
+    const TArray<FVector>& Points,
     float WidthCm,
     TArray<FVector>& Vertices,
     TArray<int32>& Triangles) const
@@ -104,9 +109,9 @@ void AInterVerseCampusSurfaceActor::AddPolylineRibbon(
 
     for (int32 Index = 0; Index < Points.Num() - 1; ++Index)
     {
-        const FVector2D A = Points[Index];
-        const FVector2D B = Points[Index + 1];
-        FVector2D Direction = B - A;
+        const FVector A = Points[Index];
+        const FVector B = Points[Index + 1];
+        FVector2D Direction(B.X - A.X, B.Y - A.Y);
         const float Length = Direction.Size();
         if (Length <= KINDA_SMALL_NUMBER)
         {
@@ -115,16 +120,16 @@ void AInterVerseCampusSurfaceActor::AddPolylineRibbon(
         Direction /= Length;
         const FVector2D Normal(-Direction.Y, Direction.X);
 
-        const FVector2D AL = A + Normal * HalfWidth;
-        const FVector2D AR = A - Normal * HalfWidth;
-        const FVector2D BL = B + Normal * HalfWidth;
-        const FVector2D BR = B - Normal * HalfWidth;
+        const FVector AL(A.X + Normal.X * HalfWidth, A.Y + Normal.Y * HalfWidth, A.Z + SurfaceZCm);
+        const FVector AR(A.X - Normal.X * HalfWidth, A.Y - Normal.Y * HalfWidth, A.Z + SurfaceZCm);
+        const FVector BL(B.X + Normal.X * HalfWidth, B.Y + Normal.Y * HalfWidth, B.Z + SurfaceZCm);
+        const FVector BR(B.X - Normal.X * HalfWidth, B.Y - Normal.Y * HalfWidth, B.Z + SurfaceZCm);
 
         const int32 Base = Vertices.Num();
-        Vertices.Add(FVector(AL.X, AL.Y, SurfaceZCm));
-        Vertices.Add(FVector(AR.X, AR.Y, SurfaceZCm));
-        Vertices.Add(FVector(BL.X, BL.Y, SurfaceZCm));
-        Vertices.Add(FVector(BR.X, BR.Y, SurfaceZCm));
+        Vertices.Add(AL);
+        Vertices.Add(AR);
+        Vertices.Add(BL);
+        Vertices.Add(BR);
 
         Triangles.Append({Base, Base + 2, Base + 1, Base + 1, Base + 2, Base + 3});
     }
@@ -189,11 +194,11 @@ bool AInterVerseCampusSurfaceActor::ParseAndBuild(const FString& JsonText)
 
         if (GeometryType == TEXT("LineString"))
         {
-            TArray<FVector2D> Points;
+            TArray<FVector> Points;
             for (const TSharedPtr<FJsonValue>& PointValue : *Coordinates)
             {
-                FVector2D P;
-                if (ReadPoint2D(PointValue, P))
+                FVector P;
+                if (ReadPoint3D(PointValue, P))
                 {
                     Points.Add(P);
                 }
@@ -206,11 +211,11 @@ bool AInterVerseCampusSurfaceActor::ParseAndBuild(const FString& JsonText)
             const TArray<TSharedPtr<FJsonValue>>* OuterRing = nullptr;
             if ((*Coordinates)[0]->TryGetArray(OuterRing) && OuterRing)
             {
-                TArray<FVector2D> Points;
+                TArray<FVector> Points;
                 for (const TSharedPtr<FJsonValue>& PointValue : *OuterRing)
                 {
-                    FVector2D P;
-                    if (ReadPoint2D(PointValue, P))
+                    FVector P;
+                    if (ReadPoint3D(PointValue, P))
                     {
                         Points.Add(P);
                     }
@@ -242,6 +247,6 @@ bool AInterVerseCampusSurfaceActor::ParseAndBuild(const FString& JsonText)
         bCreateCollision
     );
 
-    UE_LOG(LogTemp, Log, TEXT("InterVerseSG: built %d campus circulation/surface features."), FeatureCount);
+    UE_LOG(LogTemp, Log, TEXT("InterVerseSG: built %d terrain-following campus circulation/surface features."), FeatureCount);
     return true;
 }
