@@ -3,7 +3,8 @@
 Run inside Unreal Editor with Python Editor Script Plugin enabled.
 The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, adds a basic
 lighting rig if missing, runs the NAV anchor generator, and adds verified
-campus geometry, procedural building extrusion, and mapped circulation surfaces.
+terrain, campus geometry, procedural building extrusion, and mapped circulation
+surfaces when their generated data files are available.
 """
 
 import os
@@ -60,6 +61,32 @@ def _run_anchor_generator():
 
 def _config_exists(filename):
     return os.path.exists(os.path.join(unreal.Paths.project_dir(), "Config", filename))
+
+
+def _data_exists(filename):
+    return os.path.exists(os.path.join(unreal.Paths.project_dir(), "Data", filename))
+
+
+def _ensure_terrain_actor():
+    if not _data_exists("campus_terrain_grid.json"):
+        unreal.log_warning(
+            "InterVerseSG terrain grid is not built yet. Run "
+            "python Scripts/build_campus_terrain.py outside Unreal first."
+        )
+        return
+
+    actor_class = getattr(unreal, "InterVerseTerrainActor", None)
+    if actor_class is None:
+        unreal.log_warning(
+            "InterVerseTerrainActor C++ class is unavailable. Compile the project, then rerun the bootstrap."
+        )
+        return
+
+    actor = _ensure_actor(actor_class, "IV_CampusTerrain", unreal.Vector(0.0, 0.0, 0.0))
+    try:
+        actor.rebuild_terrain()
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG terrain rebuild warning: {}".format(exc))
 
 
 def _ensure_geometry_actor():
@@ -127,6 +154,7 @@ def _ensure_surface_actor():
 def bootstrap():
     _ensure_level()
     _ensure_environment()
+    _ensure_terrain_actor()
     _run_anchor_generator()
     _ensure_geometry_actor()
     _ensure_building_extrusion_actor()
