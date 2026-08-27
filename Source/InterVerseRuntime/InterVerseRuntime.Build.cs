@@ -17,7 +17,8 @@ public class InterVerseRuntime : ModuleRules
             "DeveloperSettings",
             "ProceduralMeshComponent",
             "HeadMountedDisplay",
-            "InputCore"
+            "InputCore",
+            "EnhancedInput"
         });
     }
 }
