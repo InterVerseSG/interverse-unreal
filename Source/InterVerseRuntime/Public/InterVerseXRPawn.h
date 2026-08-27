@@ -13,6 +13,9 @@ class UInterVerseNavigationComponent;
 class UInterVerseVRLocomotionComponent;
 class UInputAction;
 class UInputMappingContext;
+class UProceduralMeshComponent;
+class UArrowComponent;
+class UTextRenderComponent;
 
 UCLASS(BlueprintType)
 class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
@@ -47,12 +50,30 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR")
     TObjectPtr<UInterVerseVRLocomotionComponent> Locomotion;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
+    TObjectPtr<UProceduralMeshComponent> TeleportVisualMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
+    TObjectPtr<UArrowComponent> GuidanceArrow;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
+    TObjectPtr<UTextRenderComponent> GuidanceText;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|XR|Input")
     bool bEnableRuntimeQuestMappings = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals")
+    float TeleportArcWidthCm = 3.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals")
+    float TeleportMarkerRadiusCm = 22.0f;
 
 private:
     void EnsureEnhancedInputMappings();
     void BindEnhancedInput(UInputComponent* PlayerInputComponent);
+    void UpdateTeleportVisual();
+    void ClearTeleportVisual();
+    void UpdateGuidanceVisual();
 
     void InputMoveForward(float Value);
     void InputMoveRight(float Value);
