@@ -41,8 +41,10 @@ protected:
 private:
     bool ParseAndBuild(const FString& JsonText);
     float ResolveHeightCm(const TSharedPtr<class FJsonObject>& Properties) const;
+    float ResolveBaseZCm(const TSharedPtr<class FJsonObject>& Properties) const;
     bool BuildPolygonSection(
         const TArray<FVector2D>& Polygon,
+        float BaseZCm,
         float HeightCm,
         int32 SectionIndex
     );
