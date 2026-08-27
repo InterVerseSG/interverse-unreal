@@ -1,0 +1,41 @@
+name: Validate InterVerseSG
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate project data and configuration
+        run: python Scripts/validate_interverse_project.py
+
+      - name: Check InterVerse API health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+            https://interverse-api-yhqx.onrender.com/healthz
+
+      - name: Check InterVerse Builder documentation endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+            https://interverse-builder.onrender.com/docs >/dev/null
