@@ -9,6 +9,7 @@ class UCameraComponent;
 class UMotionControllerComponent;
 class UInterVerseCloudClient;
 class UInterVerseNavigationComponent;
+class UInterVerseVRLocomotionComponent;
 
 UCLASS(BlueprintType)
 class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
@@ -17,6 +18,9 @@ class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
 
 public:
     AInterVerseXRPawn();
+
+    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual void Tick(float DeltaSeconds) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR")
     TObjectPtr<USceneComponent> VROrigin;
@@ -35,4 +39,18 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Navigation")
     TObjectPtr<UInterVerseNavigationComponent> Navigation;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR")
+    TObjectPtr<UInterVerseVRLocomotionComponent> Locomotion;
+
+private:
+    void InputMoveForward(float Value);
+    void InputMoveRight(float Value);
+    void InputTurn(float Value);
+    void InputTeleportPressed();
+    void InputTeleportReleased();
+
+    float MoveForwardValue = 0.0f;
+    float MoveRightValue = 0.0f;
+    bool bTurnLatched = false;
 };
