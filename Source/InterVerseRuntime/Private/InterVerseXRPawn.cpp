@@ -56,6 +56,11 @@ void AInterVerseXRPawn::Tick(float DeltaSeconds)
             Locomotion->UpdateTeleportAim();
         }
     }
+
+    if (Navigation && Navigation->IsGuidanceActive())
+    {
+        Navigation->UpdateGuidance();
+    }
 }
 
 void AInterVerseXRPawn::InputMoveForward(float Value)
