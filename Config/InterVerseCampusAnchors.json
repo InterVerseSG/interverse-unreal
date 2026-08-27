@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "coordinate_system": "local ENU meters",
   "unreal_scale": "1 meter = 100 Unreal units",
   "origin": {
@@ -9,51 +9,22 @@
     "unreal_x_cm": 0,
     "unreal_y_cm": 0
   },
-  "axis_mapping": {
-    "east": "+X",
-    "north": "+Y",
-    "up": "+Z"
-  },
+  "axis_mapping": {"east": "+X", "north": "+Y", "up": "+Z"},
   "anchors": [
-    {
-      "id": "MarquisScienceHall",
-      "navigation_anchor": "NAV_MarquisScienceHall",
-      "east_m": 0.0,
-      "north_m": 0.0,
-      "unreal_x_cm": 0,
-      "unreal_y_cm": 0
-    },
-    {
-      "id": "EusebioLopezAcosta",
-      "navigation_anchor": "NAV_EusebioLopezAcosta",
-      "east_m": -64.57,
-      "north_m": 30.99,
-      "unreal_x_cm": -6457,
-      "unreal_y_cm": 3099
-    },
-    {
-      "id": "FellowshipHall",
-      "navigation_anchor": "NAV_FellowshipHall",
-      "east_m": 49.75,
-      "north_m": 27.67,
-      "unreal_x_cm": 4975,
-      "unreal_y_cm": 2767
-    },
-    {
-      "id": "PhranerHall",
-      "navigation_anchor": "NAV_PhranerHall",
-      "east_m": -342.97,
-      "north_m": 222.47,
-      "unreal_x_cm": -34297,
-      "unreal_y_cm": 22247
-    },
-    {
-      "id": "CostelloHall",
-      "navigation_anchor": "NAV_CostelloHall",
-      "east_m": 112.21,
-      "north_m": 347.54,
-      "unreal_x_cm": 11221,
-      "unreal_y_cm": 34754
-    }
+    {"id":"MarquisScienceHall","navigation_anchor":"NAV_MarquisScienceHall","east_m":0.0,"north_m":0.0,"unreal_x_cm":0,"unreal_y_cm":0},
+    {"id":"EusebioLopezAcosta","navigation_anchor":"NAV_EusebioLopezAcosta","east_m":-64.48,"north_m":31.13,"unreal_x_cm":-6448,"unreal_y_cm":3114},
+    {"id":"FellowshipHall","navigation_anchor":"NAV_FellowshipHall","east_m":49.68,"north_m":27.8,"unreal_x_cm":4968,"unreal_y_cm":2780},
+    {"id":"PhranerHall","navigation_anchor":"NAV_PhranerHall","east_m":-342.47,"north_m":223.5,"unreal_x_cm":-34247,"unreal_y_cm":22350},
+    {"id":"CostelloHall","navigation_anchor":"NAV_CostelloHall","east_m":112.04,"north_m":349.15,"unreal_x_cm":11204,"unreal_y_cm":34915},
+    {"id":"CentroEstudiantesJamesABeverly","navigation_anchor":"NAV_CentroEstudiantes","east_m":-200.83,"north_m":-46.7,"unreal_x_cm":-20083,"unreal_y_cm":-4670},
+    {"id":"PolideportivoLuisFSambolin","navigation_anchor":"NAV_PolideportivoSambolin","east_m":-355.16,"north_m":-61.16,"unreal_x_cm":-35516,"unreal_y_cm":-6116},
+    {"id":"PistaLuisFSambolinAlsina","navigation_anchor":"NAV_PistaSambolin","east_m":-501.03,"north_m":-51.15,"unreal_x_cm":-50103,"unreal_y_cm":-5115},
+    {"id":"JuanCancioOrtizCAI","navigation_anchor":"NAV_CAI","east_m":-319.22,"north_m":47.81,"unreal_x_cm":-31922,"unreal_y_cm":4781},
+    {"id":"CapillaPaulAWolfeMemorial","navigation_anchor":"NAV_CapillaPaulAWolfe","east_m":32.77,"north_m":62.27,"unreal_x_cm":3277,"unreal_y_cm":6227},
+    {"id":"CarlosJTorres","navigation_anchor":"NAV_CarlosJTorres","east_m":-15.86,"north_m":78.95,"unreal_x_cm":-1586,"unreal_y_cm":7895},
+    {"id":"LeopoldoOrtizJusino","navigation_anchor":"NAV_LeopoldoOrtizJusino","east_m":-86.68,"north_m":63.38,"unreal_x_cm":-8668,"unreal_y_cm":6338},
+    {"id":"KeiwingCottage","navigation_anchor":"NAV_KeiwingCottage","east_m":32.77,"north_m":189.03,"unreal_x_cm":3277,"unreal_y_cm":18903},
+    {"id":"CampusSchoolAnexo2","navigation_anchor":"NAV_CampusSchoolAnexo2","east_m":-520.05,"north_m":120.09,"unreal_x_cm":-52005,"unreal_y_cm":12009},
+    {"id":"CampusMain","navigation_anchor":"NAV_CampusMain","east_m":-114.16,"north_m":283.55,"unreal_x_cm":-11416,"unreal_y_cm":28355}
   ]
 }
