@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "InputActionValue.h"
 #include "InterVerseXRPawn.generated.h"
 
 class USceneComponent;
@@ -10,6 +11,8 @@ class UMotionControllerComponent;
 class UInterVerseCloudClient;
 class UInterVerseNavigationComponent;
 class UInterVerseVRLocomotionComponent;
+class UInputAction;
+class UInputMappingContext;
 
 UCLASS(BlueprintType)
 class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
@@ -19,6 +22,7 @@ class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
 public:
     AInterVerseXRPawn();
 
+    virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual void Tick(float DeltaSeconds) override;
 
@@ -43,12 +47,39 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR")
     TObjectPtr<UInterVerseVRLocomotionComponent> Locomotion;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|XR|Input")
+    bool bEnableRuntimeQuestMappings = true;
+
 private:
+    void EnsureEnhancedInputMappings();
+    void BindEnhancedInput(UInputComponent* PlayerInputComponent);
+
     void InputMoveForward(float Value);
     void InputMoveRight(float Value);
     void InputTurn(float Value);
     void InputTeleportPressed();
     void InputTeleportReleased();
+
+    void EnhancedMoveForward(const FInputActionValue& Value);
+    void EnhancedMoveRight(const FInputActionValue& Value);
+    void EnhancedTurn(const FInputActionValue& Value);
+    void EnhancedTeleportStarted(const FInputActionValue& Value);
+    void EnhancedTeleportCompleted(const FInputActionValue& Value);
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputMappingContext> RuntimeMappingContext;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputAction> MoveForwardAction;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputAction> MoveRightAction;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputAction> TurnAction;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputAction> TeleportAction;
 
     float MoveForwardValue = 0.0f;
     float MoveRightValue = 0.0f;
