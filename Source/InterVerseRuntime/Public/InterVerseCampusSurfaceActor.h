@@ -49,7 +49,7 @@ private:
     bool ParseAndBuild(const FString& JsonText);
     float WidthForCategory(const FString& Category) const;
     void AddPolylineRibbon(
-        const TArray<FVector2D>& Points,
+        const TArray<FVector>& Points,
         float WidthCm,
         TArray<FVector>& Vertices,
         TArray<int32>& Triangles) const;
