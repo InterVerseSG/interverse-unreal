@@ -4,10 +4,14 @@ Run with normal system Python from the repository root:
     python Scripts/build_campus_geometry.py
 
 Steps:
-1. Download verified OSM ways listed in Data/campus_geometry_sources.json.
+1. Download verified building/campus OSM ways listed in Data/campus_geometry_sources.json.
 2. Write Data/campus_geometry.geojson.
-3. Convert WGS84 lon/lat to local Unreal centimeters.
+3. Convert WGS84 building geometry to local Unreal centimeters.
 4. Write Config/InterVerseCampusGeometry.local.json.
+5. Query mapped roads, paths, pedestrian ways and parking inside the campus area.
+6. Write Data/campus_surfaces.geojson.
+7. Convert those circulation/surface features to local Unreal centimeters.
+8. Write Config/InterVerseCampusSurfaces.local.json.
 """
 
 from __future__ import annotations
@@ -29,8 +33,11 @@ def run(script_name: str) -> None:
 def main() -> None:
     run("fetch_osm_footprints.py")
     run("convert_geojson_to_unreal.py")
+    run("fetch_osm_campus_surfaces.py")
+    run("convert_surfaces_to_unreal.py")
     print("\nInterVerseSG campus geometry pipeline completed successfully.")
-    print("Next: open Unreal Editor and rebuild the InterVerse campus geometry actor.")
+    print("Generated building geometry plus mapped campus roads, paths and parking data.")
+    print("Next: open Unreal Editor and rerun bootstrap_interverse_level.py.")
 
 
 if __name__ == "__main__":
