@@ -1,7 +1,7 @@
 #include "InterVerseBuildingExtrusionActor.h"
 
+#include "Algo/Reverse.h"
 #include "Dom/JsonObject.h"
-#include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "ProceduralMeshComponent.h"
@@ -58,12 +58,28 @@ bool ReadPoint2D(const TSharedPtr<FJsonValue>& Value, FVector2D& OutPoint)
     OutPoint = FVector2D(static_cast<float>(X), static_cast<float>(Y));
     return true;
 }
+
+bool IsBuildingFeature(const TSharedPtr<FJsonObject>& Properties)
+{
+    if (!Properties.IsValid())
+    {
+        return false;
+    }
+
+    const TSharedPtr<FJsonObject>* TagsPtr = nullptr;
+    if (!Properties->TryGetObjectField(TEXT("osm_tags"), TagsPtr) || !TagsPtr || !TagsPtr->IsValid())
+    {
+        return false;
+    }
+
+    FString BuildingValue;
+    return (*TagsPtr)->TryGetStringField(TEXT("building"), BuildingValue) && !BuildingValue.IsEmpty() && BuildingValue != TEXT("no");
+}
 }
 
 AInterVerseBuildingExtrusionActor::AInterVerseBuildingExtrusionActor()
 {
     PrimaryActorTick.bCanEverTick = false;
-
     ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralMesh"));
     SetRootComponent(ProceduralMesh);
     ProceduralMesh->SetMobility(EComponentMobility::Static);
@@ -88,10 +104,7 @@ void AInterVerseBuildingExtrusionActor::ClearBuildings()
 bool AInterVerseBuildingExtrusionActor::RebuildBuildings()
 {
     ClearBuildings();
-
-    const FString AbsolutePath = FPaths::ConvertRelativePathToFull(
-        FPaths::Combine(FPaths::ProjectDir(), GeometryJsonRelativePath)
-    );
+    const FString AbsolutePath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), GeometryJsonRelativePath));
 
     FString JsonText;
     if (!FFileHelper::LoadFileToString(JsonText, *AbsolutePath))
@@ -176,6 +189,14 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
         }
 
         const TSharedPtr<FJsonObject>& Feature = *FeaturePtr;
+        const TSharedPtr<FJsonObject>* PropertiesPtr = nullptr;
+        Feature->TryGetObjectField(TEXT("properties"), PropertiesPtr);
+        const TSharedPtr<FJsonObject> Properties = (PropertiesPtr && PropertiesPtr->IsValid()) ? *PropertiesPtr : nullptr;
+        if (!IsBuildingFeature(Properties))
+        {
+            continue;
+        }
+
         const TSharedPtr<FJsonObject>* GeometryPtr = nullptr;
         if (!Feature->TryGetObjectField(TEXT("geometry"), GeometryPtr) || !GeometryPtr || !GeometryPtr->IsValid())
         {
@@ -184,20 +205,12 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
 
         const TSharedPtr<FJsonObject>& Geometry = *GeometryPtr;
         FString GeometryType;
-        if (!Geometry->TryGetStringField(TEXT("type"), GeometryType))
+        if (!Geometry->TryGetStringField(TEXT("type"), GeometryType) || (GeometryType != TEXT("Polygon") && GeometryType != TEXT("MultiPolygon")))
         {
             continue;
         }
 
-        if (GeometryType != TEXT("Polygon") && GeometryType != TEXT("MultiPolygon"))
-        {
-            continue;
-        }
-
-        const TSharedPtr<FJsonObject>* PropertiesPtr = nullptr;
-        Feature->TryGetObjectField(TEXT("properties"), PropertiesPtr);
-        const float HeightCm = ResolveHeightCm(PropertiesPtr ? *PropertiesPtr : nullptr);
-
+        const float HeightCm = ResolveHeightCm(Properties);
         const TArray<TSharedPtr<FJsonValue>>* Coordinates = nullptr;
         if (!Geometry->TryGetArrayField(TEXT("coordinates_cm"), Coordinates) || !Coordinates)
         {
@@ -257,14 +270,11 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("InterVerseSG: built %d footprint extrusions."), BuiltPolygonCount);
+    UE_LOG(LogTemp, Log, TEXT("InterVerseSG: built %d verified OSM building extrusions."), BuiltPolygonCount);
     return BuiltPolygonCount > 0;
 }
 
-bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(
-    const TArray<FVector2D>& InputPolygon,
-    float HeightCm,
-    int32 SectionIndex)
+bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(const TArray<FVector2D>& InputPolygon, float HeightCm, int32 SectionIndex)
 {
     TArray<FVector2D> Polygon = InputPolygon;
     if (Polygon.Num() < 3)
@@ -298,7 +308,6 @@ bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(
 
     TArray<int32> Triangles;
     Triangles.Reserve(RoofTriangles.Num() + Count * 6);
-
     for (int32 Index = 0; Index < Count; ++Index)
     {
         const int32 Next = (Index + 1) % Count;
@@ -306,8 +315,8 @@ bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(
         const int32 B1 = Next;
         const int32 T0 = Index + Count;
         const int32 T1 = Next + Count;
-
-        Triangles.Append({B0, B1, T1, B0, T1, T0});
+        Triangles.Add(B0); Triangles.Add(B1); Triangles.Add(T1);
+        Triangles.Add(B0); Triangles.Add(T1); Triangles.Add(T0);
     }
 
     for (int32 Index = 0; Index < RoofTriangles.Num(); Index += 3)
@@ -321,24 +330,11 @@ bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(
     TArray<FVector2D> UV0;
     TArray<FLinearColor> VertexColors;
     TArray<FProcMeshTangent> Tangents;
-
-    ProceduralMesh->CreateMeshSection_LinearColor(
-        SectionIndex,
-        Vertices,
-        Triangles,
-        Normals,
-        UV0,
-        VertexColors,
-        Tangents,
-        bCreateCollision
-    );
-
+    ProceduralMesh->CreateMeshSection_LinearColor(SectionIndex, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, bCreateCollision);
     return true;
 }
 
-bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(
-    const TArray<FVector2D>& Polygon,
-    TArray<int32>& OutTriangles)
+bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(const TArray<FVector2D>& Polygon, TArray<int32>& OutTriangles)
 {
     OutTriangles.Reset();
     if (Polygon.Num() < 3)
@@ -355,17 +351,14 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(
 
     int32 SafetyCounter = 0;
     const int32 MaxIterations = Polygon.Num() * Polygon.Num();
-
     while (Remaining.Num() > 3 && SafetyCounter++ < MaxIterations)
     {
         bool bClippedEar = false;
-
         for (int32 LocalIndex = 0; LocalIndex < Remaining.Num(); ++LocalIndex)
         {
             const int32 PrevIndex = Remaining[(LocalIndex - 1 + Remaining.Num()) % Remaining.Num()];
             const int32 CurrIndex = Remaining[LocalIndex];
             const int32 NextIndex = Remaining[(LocalIndex + 1) % Remaining.Num()];
-
             const FVector2D& A = Polygon[PrevIndex];
             const FVector2D& B = Polygon[CurrIndex];
             const FVector2D& C = Polygon[NextIndex];
@@ -382,7 +375,6 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(
                 {
                     continue;
                 }
-
                 if (PointInTriangle(Polygon[TestIndex], A, B, C))
                 {
                     bContainsOtherPoint = true;
@@ -390,15 +382,15 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(
                 }
             }
 
-            if (bContainsOtherPoint)
+            if (!bContainsOtherPoint)
             {
-                continue;
+                OutTriangles.Add(PrevIndex);
+                OutTriangles.Add(CurrIndex);
+                OutTriangles.Add(NextIndex);
+                Remaining.RemoveAt(LocalIndex);
+                bClippedEar = true;
+                break;
             }
-
-            OutTriangles.Append({PrevIndex, CurrIndex, NextIndex});
-            Remaining.RemoveAt(LocalIndex);
-            bClippedEar = true;
-            break;
         }
 
         if (!bClippedEar)
@@ -409,9 +401,10 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(
 
     if (Remaining.Num() == 3)
     {
-        OutTriangles.Append({Remaining[0], Remaining[1], Remaining[2]});
+        OutTriangles.Add(Remaining[0]);
+        OutTriangles.Add(Remaining[1]);
+        OutTriangles.Add(Remaining[2]);
         return true;
     }
-
     return false;
 }
