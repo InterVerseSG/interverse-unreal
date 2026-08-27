@@ -83,6 +83,42 @@ void UInterVerseVRLocomotionComponent::BeginTeleportAim()
     UpdateTeleportAim();
 }
 
+void UInterVerseVRLocomotionComponent::GetTeleportArcPoints(TArray<FVector>& OutPoints, bool& bOutValidDestination) const
+{
+    OutPoints.Reset();
+    bOutValidDestination = false;
+
+    const AInterVerseXRPawn* Pawn = GetXRPawn();
+    const UWorld* World = GetWorld();
+    if (!Pawn || !Pawn->RightController || !World)
+    {
+        return;
+    }
+
+    FVector Position = Pawn->RightController->GetComponentLocation();
+    FVector Velocity = Pawn->RightController->GetForwardVector() * TeleportLaunchSpeedCmPerSecond;
+    const FVector Gravity(0.0f, 0.0f, World->GetGravityZ());
+    const float StepSeconds = TeleportSimulationSeconds / FMath::Max(1, TeleportSimulationSteps);
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(InterVerseTeleportArcVisual), false, Pawn);
+
+    OutPoints.Add(Position);
+    for (int32 Step = 0; Step < TeleportSimulationSteps; ++Step)
+    {
+        const FVector NextPosition = Position + Velocity * StepSeconds + 0.5f * Gravity * StepSeconds * StepSeconds;
+        FHitResult Hit;
+        if (World->LineTraceSingleByChannel(Hit, Position, NextPosition, ECC_Visibility, Params))
+        {
+            OutPoints.Add(Hit.ImpactPoint);
+            bOutValidDestination = Hit.ImpactNormal.Z >= 0.65f;
+            return;
+        }
+
+        OutPoints.Add(NextPosition);
+        Position = NextPosition;
+        Velocity += Gravity * StepSeconds;
+    }
+}
+
 bool UInterVerseVRLocomotionComponent::FindTeleportDestination(FVector& OutDestination) const
 {
     const AInterVerseXRPawn* Pawn = GetXRPawn();
@@ -105,7 +141,6 @@ bool UInterVerseVRLocomotionComponent::FindTeleportDestination(FVector& OutDesti
         FHitResult Hit;
         if (World->LineTraceSingleByChannel(Hit, Position, NextPosition, ECC_Visibility, Params))
         {
-            // Reject walls/steep faces. The destination surface should be predominantly upward-facing.
             if (Hit.ImpactNormal.Z >= 0.65f)
             {
                 OutDestination = Hit.ImpactPoint + FVector(0.0f, 0.0f, TeleportDestinationLiftCm);
@@ -154,7 +189,6 @@ bool UInterVerseVRLocomotionComponent::CommitTeleport()
         return false;
     }
 
-    // Preserve room-scale HMD XY offset relative to the pawn root.
     const FVector PawnLocation = Pawn->GetActorLocation();
     const FVector CameraLocation = Pawn->Camera->GetComponentLocation();
     const FVector CameraOffsetXY(CameraLocation.X - PawnLocation.X, CameraLocation.Y - PawnLocation.Y, 0.0f);
