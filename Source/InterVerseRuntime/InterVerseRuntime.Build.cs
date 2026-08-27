@@ -14,7 +14,8 @@ public class InterVerseRuntime : ModuleRules
             "HTTP",
             "Json",
             "JsonUtilities",
-            "DeveloperSettings"
+            "DeveloperSettings",
+            "ProceduralMeshComponent"
         });
     }
 }
