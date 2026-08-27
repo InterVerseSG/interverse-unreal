@@ -11,7 +11,7 @@ class UInterVerseRuntimeSettings : public UDeveloperSettings
 
 public:
     UPROPERTY(Config, EditAnywhere, Category="Cloud")
-    FString ApiBaseUrl = TEXT("https://interverse-api.onrender.com");
+    FString ApiBaseUrl = TEXT("https://interverse-api-yhqx.onrender.com");
 
     UPROPERTY(Config, EditAnywhere, Category="Cloud")
     FString BuilderBaseUrl = TEXT("https://interverse-builder.onrender.com");
