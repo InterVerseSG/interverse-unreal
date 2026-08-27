@@ -2,6 +2,7 @@
 
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
+#include "InterVerseNavigationComponent.h"
 #include "InterVerseRuntimeSettings.h"
 #include "JsonObjectConverter.h"
 
@@ -44,6 +45,10 @@ void UInterVerseCloudClient::AskAssistant(const FInterVerseAssistantRequest& Req
             }
 
             OnAssistantCommand.Broadcast(Command);
+            if (bAutoValidateAssistantCommands)
+            {
+                ValidateCommand(Command, false);
+            }
         });
 
     Request->ProcessRequest();
@@ -55,6 +60,7 @@ void UInterVerseCloudClient::ValidateCommand(const FInterVerseCommand& Command, 
 
     TSharedPtr<FJsonObject> Payload = MakeShared<FJsonObject>();
     Payload->SetStringField(TEXT("action"), Command.Action);
+    Payload->SetStringField(TEXT("response"), Command.Response);
     Payload->SetStringField(TEXT("target"), Command.Target);
     Payload->SetStringField(TEXT("object_type"), Command.ObjectType);
     Payload->SetNumberField(TEXT("quantity"), Command.Quantity);
@@ -90,7 +96,35 @@ void UInterVerseCloudClient::ValidateCommand(const FInterVerseCommand& Command, 
             }
 
             OnCommandValidated.Broadcast(Validated);
+            if (bAutoExecuteValidatedNavigation)
+            {
+                TryAutoExecute(Validated);
+            }
         });
 
     Request->ProcessRequest();
+}
+
+void UInterVerseCloudClient::TryAutoExecute(const FInterVerseValidatedCommand& Command)
+{
+    if (!Command.bAccepted || !Command.Action.Equals(TEXT("navigate"), ESearchCase::IgnoreCase))
+    {
+        return;
+    }
+
+    AActor* OwnerActor = GetOwner();
+    if (!OwnerActor)
+    {
+        OnCloudError.Broadcast(TEXT("El cliente cloud no tiene un actor propietario para ejecutar navegación."));
+        return;
+    }
+
+    UInterVerseNavigationComponent* Navigation = OwnerActor->FindComponentByClass<UInterVerseNavigationComponent>();
+    if (!Navigation)
+    {
+        OnCloudError.Broadcast(TEXT("Falta InterVerseNavigationComponent en el Pawn/Actor que usa InterVerseCloudClient."));
+        return;
+    }
+
+    Navigation->ExecuteValidatedCommand(Command);
 }
