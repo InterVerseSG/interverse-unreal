@@ -10,7 +10,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInterVerseCommandValidated, const F
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInterVerseCloudError, const FString&, Message);
 
 UCLASS(ClassGroup=(InterVerse), meta=(BlueprintSpawnableComponent))
-class UInterVerseCloudClient : public UActorComponent
+class INTERVERSERUNTIME_API UInterVerseCloudClient : public UActorComponent
 {
     GENERATED_BODY()
 
@@ -24,6 +24,14 @@ public:
     UPROPERTY(BlueprintAssignable, Category="InterVerse|Cloud")
     FInterVerseCloudError OnCloudError;
 
+    /** Automatically send Gemini's command to InterVerse Builder for validation. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Cloud")
+    bool bAutoValidateAssistantCommands = true;
+
+    /** Automatically execute accepted navigate commands if the owner has an InterVerseNavigationComponent. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Cloud")
+    bool bAutoExecuteValidatedNavigation = true;
+
     UFUNCTION(BlueprintCallable, Category="InterVerse|Cloud")
     void AskAssistant(const FInterVerseAssistantRequest& Request);
 
@@ -32,4 +40,5 @@ public:
 
 private:
     FString JoinUrl(const FString& Base, const FString& Path) const;
+    void TryAutoExecute(const FInterVerseValidatedCommand& Command);
 };
