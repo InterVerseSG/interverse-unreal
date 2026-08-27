@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "coordinate_system": "local ENU meters",
   "unreal_scale": "1 meter = 100 Unreal units",
   "origin": {
@@ -25,15 +25,8 @@
     {"id":"LeopoldoOrtizJusino","navigation_anchor":"NAV_LeopoldoOrtizJusino","east_m":-86.68,"north_m":63.38,"unreal_x_cm":-8668,"unreal_y_cm":6338,"coordinate_status":"verified"},
     {"id":"KeiwingCottage","navigation_anchor":"NAV_KeiwingCottage","east_m":32.77,"north_m":189.03,"unreal_x_cm":3277,"unreal_y_cm":18903,"coordinate_status":"verified"},
     {"id":"CampusSchoolAnexo2","navigation_anchor":"NAV_CampusSchoolAnexo2","east_m":-520.05,"north_m":120.09,"unreal_x_cm":-52005,"unreal_y_cm":12009,"coordinate_status":"verified"},
-    {"id":"CampusMain","navigation_anchor":"NAV_CampusMain","east_m":-114.16,"north_m":283.55,"unreal_x_cm":-11416,"unreal_y_cm":28355,"coordinate_status":"verified"}
+    {"id":"CampusMain","navigation_anchor":"NAV_CampusMain","east_m":-114.16,"north_m":283.55,"unreal_x_cm":-11416,"unreal_y_cm":28355,"coordinate_status":"verified"},
+    {"id":"EscuelaGraduada","display_name":"Escuela de Estudios Graduados e Investigación (EEGEI)","navigation_anchor":"NAV_EscuelaGraduada","latitude":18.08518322539467,"longitude":-67.05382825210272,"east_m":-521.98,"north_m":141.58,"unreal_x_cm":-52198,"unreal_y_cm":14158,"coordinate_status":"verified","coordinate_source":"project_owner"}
   ],
-  "pending_anchors": [
-    {
-      "id": "EscuelaGraduada",
-      "display_name": "Escuela de Estudios Graduados e Investigación (EEGEI)",
-      "navigation_anchor": "NAV_EscuelaGraduada",
-      "coordinate_status": "pending",
-      "reason": "Institutionally verified building; exact geospatial coordinates not yet independently verified."
-    }
-  ]
+  "pending_anchors": []
 }
