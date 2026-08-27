@@ -1,0 +1,17 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.7",
+  "Category": "",
+  "Description": "InterVerseSG immersive campus digital twin for Meta Quest.",
+  "Modules": [
+    {
+      "Name": "InterVerseRuntime",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {"Name": "OpenXR", "Enabled": true},
+    {"Name": "PythonScriptPlugin", "Enabled": true}
+  ]
+}
