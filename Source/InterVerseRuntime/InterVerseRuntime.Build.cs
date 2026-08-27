@@ -15,7 +15,9 @@ public class InterVerseRuntime : ModuleRules
             "Json",
             "JsonUtilities",
             "DeveloperSettings",
-            "ProceduralMeshComponent"
+            "ProceduralMeshComponent",
+            "HeadMountedDisplay",
+            "InputCore"
         });
     }
 }
