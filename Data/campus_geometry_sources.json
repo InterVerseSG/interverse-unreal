@@ -1,0 +1,23 @@
+{
+  "version": "0.1.0",
+  "canonical_visual_reference": "https://viaintersg.org/index.html",
+  "policy": "Use only verified geometry. Preserve source identifiers and attribution metadata.",
+  "sources": [
+    {"id":"MarquisScienceHall","name":"Marquis Science Hall","source":"OpenStreetMap","osm_type":"way","osm_id":535255802,"geometry_status":"footprint_available_from_osm"},
+    {"id":"EusebioLopezAcosta","name":"Eusebio López Acosta","source":"OpenStreetMap","osm_type":"way","osm_id":535255804,"geometry_status":"footprint_available_from_osm"},
+    {"id":"FellowshipHall","name":"Fellowship Hall","source":"OpenStreetMap","osm_type":"way","osm_id":535255808,"geometry_status":"footprint_available_from_osm"},
+    {"id":"PhranerHall","name":"Phraner Hall","source":"OpenStreetMap","osm_type":"way","osm_id":534722454,"geometry_status":"footprint_available_from_osm"},
+    {"id":"CostelloHall","name":"Costello Hall","source":"OpenStreetMap","osm_type":"way","osm_id":533914458,"geometry_status":"footprint_available_from_osm"},
+    {"id":"CentroEstudiantesJamesABeverly","name":"Centro de Estudiantes James A. Beverly","source":"OpenStreetMap","osm_type":"way","osm_id":533905418,"geometry_status":"footprint_available_from_osm"},
+    {"id":"PolideportivoLuisFSambolin","name":"Polideportivo Luis F. Sambolín","source":"OpenStreetMap","osm_type":"way","osm_id":533884274,"geometry_status":"footprint_available_from_osm"},
+    {"id":"PistaLuisFSambolinAlsina","name":"Pista Doctor Luis F. Sambolín Alsina","source":"OpenStreetMap","osm_type":"way","osm_id":756402476,"geometry_status":"footprint_available_from_osm"},
+    {"id":"JuanCancioOrtizCAI","name":"Juan Cancio Ortiz / CAI","source":"OpenStreetMap","osm_type":"way","osm_id":533903940,"geometry_status":"footprint_available_from_osm"},
+    {"id":"CapillaPaulAWolfeMemorial","name":"Capilla Paul A. Wolfe Memorial","source":"OpenStreetMap","osm_type":"way","osm_id":535255819,"geometry_status":"footprint_available_from_osm"},
+    {"id":"CarlosJTorres","name":"Carlos J. Torres","source":"OpenStreetMap","osm_type":"way","osm_id":535255806,"geometry_status":"footprint_available_from_osm"},
+    {"id":"LeopoldoOrtizJusino","name":"Leopoldo Ortiz Jusino","source":"OpenStreetMap","osm_type":"way","osm_id":533904372,"geometry_status":"footprint_available_from_osm"},
+    {"id":"KeiwingCottage","name":"Keiwing Cottage","source":"OpenStreetMap","osm_type":"way","osm_id":535255800,"geometry_status":"footprint_available_from_osm"},
+    {"id":"CampusSchoolAnexo2","name":"Campus School Extension Anexo 2","source":"OpenStreetMap","osm_type":"way","osm_id":533884268,"geometry_status":"footprint_available_from_osm"},
+    {"id":"CampusMain","name":"Universidad Interamericana de Puerto Rico - San Germán","source":"OpenStreetMap","osm_type":"way","osm_id":559731741,"geometry_status":"campus_boundary_available_from_osm"},
+    {"id":"EscuelaGraduada","name":"Escuela de Estudios Graduados e Investigación (EEGEI)","source":"project_owner","latitude":18.08518322539467,"longitude":-67.05382825210272,"geometry_status":"verified_point_only","navigation_anchor":"NAV_EscuelaGraduada"}
+  ]
+}
