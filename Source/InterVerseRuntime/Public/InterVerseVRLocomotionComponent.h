@@ -74,6 +74,10 @@ public:
     UFUNCTION(BlueprintPure, Category="InterVerse|VR|Teleport")
     FVector GetTeleportDestination() const { return TeleportDestination; }
 
+    /** Returns sampled world-space points for the currently aimed teleport parabola. */
+    UFUNCTION(BlueprintCallable, Category="InterVerse|VR|Teleport")
+    void GetTeleportArcPoints(TArray<FVector>& OutPoints, bool& bOutValidDestination) const;
+
 private:
     AInterVerseXRPawn* GetXRPawn() const;
     bool FindTeleportDestination(FVector& OutDestination) const;
