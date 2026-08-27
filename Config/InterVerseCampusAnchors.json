@@ -1,0 +1,59 @@
+{
+  "version": "0.1.0",
+  "coordinate_system": "local ENU meters",
+  "unreal_scale": "1 meter = 100 Unreal units",
+  "origin": {
+    "poi_id": "MarquisScienceHall",
+    "longitude": -67.04889,
+    "latitude": 18.08391,
+    "unreal_x_cm": 0,
+    "unreal_y_cm": 0
+  },
+  "axis_mapping": {
+    "east": "+X",
+    "north": "+Y",
+    "up": "+Z"
+  },
+  "anchors": [
+    {
+      "id": "MarquisScienceHall",
+      "navigation_anchor": "NAV_MarquisScienceHall",
+      "east_m": 0.0,
+      "north_m": 0.0,
+      "unreal_x_cm": 0,
+      "unreal_y_cm": 0
+    },
+    {
+      "id": "EusebioLopezAcosta",
+      "navigation_anchor": "NAV_EusebioLopezAcosta",
+      "east_m": -64.57,
+      "north_m": 30.99,
+      "unreal_x_cm": -6457,
+      "unreal_y_cm": 3099
+    },
+    {
+      "id": "FellowshipHall",
+      "navigation_anchor": "NAV_FellowshipHall",
+      "east_m": 49.75,
+      "north_m": 27.67,
+      "unreal_x_cm": 4975,
+      "unreal_y_cm": 2767
+    },
+    {
+      "id": "PhranerHall",
+      "navigation_anchor": "NAV_PhranerHall",
+      "east_m": -342.97,
+      "north_m": 222.47,
+      "unreal_x_cm": -34297,
+      "unreal_y_cm": 22247
+    },
+    {
+      "id": "CostelloHall",
+      "navigation_anchor": "NAV_CostelloHall",
+      "east_m": 112.21,
+      "north_m": 347.54,
+      "unreal_x_cm": 11221,
+      "unreal_y_cm": 34754
+    }
+  ]
+}
