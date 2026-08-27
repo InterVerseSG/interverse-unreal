@@ -160,6 +160,21 @@ float AInterVerseBuildingExtrusionActor::ResolveHeightCm(const TSharedPtr<FJsonO
     return DefaultBuildingHeightCm;
 }
 
+float AInterVerseBuildingExtrusionActor::ResolveBaseZCm(const TSharedPtr<FJsonObject>& Properties) const
+{
+    if (!Properties.IsValid())
+    {
+        return 0.0f;
+    }
+
+    double BaseZ = 0.0;
+    if (Properties->TryGetNumberField(TEXT("terrain_base_z_cm"), BaseZ))
+    {
+        return static_cast<float>(BaseZ);
+    }
+    return 0.0f;
+}
+
 bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
 {
     TSharedPtr<FJsonObject> Root;
@@ -211,6 +226,7 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
         }
 
         const float HeightCm = ResolveHeightCm(Properties);
+        const float BaseZCm = ResolveBaseZCm(Properties);
         const TArray<TSharedPtr<FJsonValue>>* Coordinates = nullptr;
         if (!Geometry->TryGetArrayField(TEXT("coordinates_cm"), Coordinates) || !Coordinates)
         {
@@ -234,7 +250,7 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
                 Polygon.Pop();
             }
 
-            if (Polygon.Num() >= 3 && BuildPolygonSection(Polygon, HeightCm, SectionIndex))
+            if (Polygon.Num() >= 3 && BuildPolygonSection(Polygon, BaseZCm, HeightCm, SectionIndex))
             {
                 ++SectionIndex;
                 ++BuiltPolygonCount;
@@ -270,11 +286,11 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("InterVerseSG: built %d verified OSM building extrusions."), BuiltPolygonCount);
+    UE_LOG(LogTemp, Log, TEXT("InterVerseSG: built %d terrain-conformed OSM building extrusions."), BuiltPolygonCount);
     return BuiltPolygonCount > 0;
 }
 
-bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(const TArray<FVector2D>& InputPolygon, float HeightCm, int32 SectionIndex)
+bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(const TArray<FVector2D>& InputPolygon, float BaseZCm, float HeightCm, int32 SectionIndex)
 {
     TArray<FVector2D> Polygon = InputPolygon;
     if (Polygon.Num() < 3)
@@ -299,11 +315,11 @@ bool AInterVerseBuildingExtrusionActor::BuildPolygonSection(const TArray<FVector
     Vertices.Reserve(Count * 2);
     for (const FVector2D& Point : Polygon)
     {
-        Vertices.Add(FVector(Point.X, Point.Y, 0.0f));
+        Vertices.Add(FVector(Point.X, Point.Y, BaseZCm));
     }
     for (const FVector2D& Point : Polygon)
     {
-        Vertices.Add(FVector(Point.X, Point.Y, HeightCm));
+        Vertices.Add(FVector(Point.X, Point.Y, BaseZCm + HeightCm));
     }
 
     TArray<int32> Triangles;
