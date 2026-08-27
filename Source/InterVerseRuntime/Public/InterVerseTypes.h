@@ -57,6 +57,15 @@ struct FInterVerseValidatedCommand
     FString Action;
 
     UPROPERTY(BlueprintReadOnly)
+    FString Message;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString Target;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString NavigationAnchor;
+
+    UPROPERTY(BlueprintReadOnly)
     FString BlueprintClass;
 
     UPROPERTY(BlueprintReadOnly)
@@ -66,11 +75,5 @@ struct FInterVerseValidatedCommand
     FString Location;
 
     UPROPERTY(BlueprintReadOnly)
-    FString Target;
-
-    UPROPERTY(BlueprintReadOnly)
     bool bRequiresConfirmation = false;
-
-    UPROPERTY(BlueprintReadOnly)
-    FString Reason;
 };
