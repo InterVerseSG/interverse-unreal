@@ -3,7 +3,8 @@
 Run inside Unreal Editor with Python Editor Script Plugin enabled.
 The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, adds a basic
 lighting rig if missing, runs the NAV anchor generator, optionally adds the
-verified campus geometry visualization actor, and saves the level.
+verified campus geometry visualization actor and procedural building extrusion
+actor, and saves the level.
 """
 
 import os
@@ -46,41 +47,30 @@ def _ensure_environment():
         unreal.Vector(0.0, 0.0, 500.0),
         unreal.Rotator(-45.0, -30.0, 0.0),
     )
-    _ensure_actor(
-        unreal.SkyLight,
-        "IV_SkyLight",
-        unreal.Vector(0.0, 0.0, 300.0),
-    )
-    _ensure_actor(
-        unreal.SkyAtmosphere,
-        "IV_SkyAtmosphere",
-        unreal.Vector(0.0, 0.0, 0.0),
-    )
-    _ensure_actor(
-        unreal.ExponentialHeightFog,
-        "IV_HeightFog",
-        unreal.Vector(0.0, 0.0, 0.0),
-    )
+    _ensure_actor(unreal.SkyLight, "IV_SkyLight", unreal.Vector(0.0, 0.0, 300.0))
+    _ensure_actor(unreal.SkyAtmosphere, "IV_SkyAtmosphere", unreal.Vector(0.0, 0.0, 0.0))
+    _ensure_actor(unreal.ExponentialHeightFog, "IV_HeightFog", unreal.Vector(0.0, 0.0, 0.0))
 
 
 def _run_anchor_generator():
-    path = os.path.join(
-        unreal.Paths.project_dir(),
-        "Scripts",
-        "generate_nav_anchors.py",
-    )
+    path = os.path.join(unreal.Paths.project_dir(), "Scripts", "generate_nav_anchors.py")
     namespace = {"__name__": "__main__"}
     with open(path, "r", encoding="utf-8") as handle:
         exec(compile(handle.read(), path, "exec"), namespace)
 
 
-def _ensure_geometry_actor():
-    config_path = os.path.join(
-        unreal.Paths.project_dir(),
-        "Config",
-        "InterVerseCampusGeometry.local.json",
+def _geometry_config_exists():
+    return os.path.exists(
+        os.path.join(
+            unreal.Paths.project_dir(),
+            "Config",
+            "InterVerseCampusGeometry.local.json",
+        )
     )
-    if not os.path.exists(config_path):
+
+
+def _ensure_geometry_actor():
+    if not _geometry_config_exists():
         unreal.log_warning(
             "InterVerseSG geometry config is not built yet. Run "
             "python Scripts/build_campus_geometry.py outside Unreal first."
@@ -90,20 +80,33 @@ def _ensure_geometry_actor():
     actor_class = getattr(unreal, "InterVerseCampusGeometryActor", None)
     if actor_class is None:
         unreal.log_warning(
-            "InterVerseCampusGeometryActor C++ class is unavailable. Compile the project, "
-            "then rerun the bootstrap."
+            "InterVerseCampusGeometryActor C++ class is unavailable. Compile the project, then rerun the bootstrap."
         )
         return
 
-    actor = _ensure_actor(
-        actor_class,
-        "IV_CampusGeometry",
-        unreal.Vector(0.0, 0.0, 0.0),
-    )
+    actor = _ensure_actor(actor_class, "IV_CampusGeometry", unreal.Vector(0.0, 0.0, 0.0))
     try:
         actor.rebuild_geometry()
     except Exception as exc:
         unreal.log_warning("InterVerseSG geometry rebuild warning: {}".format(exc))
+
+
+def _ensure_building_extrusion_actor():
+    if not _geometry_config_exists():
+        return
+
+    actor_class = getattr(unreal, "InterVerseBuildingExtrusionActor", None)
+    if actor_class is None:
+        unreal.log_warning(
+            "InterVerseBuildingExtrusionActor C++ class is unavailable. Ensure ProceduralMeshComponent is enabled, compile the project, then rerun the bootstrap."
+        )
+        return
+
+    actor = _ensure_actor(actor_class, "IV_CampusBuildings", unreal.Vector(0.0, 0.0, 0.0))
+    try:
+        actor.rebuild_buildings()
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG building extrusion warning: {}".format(exc))
 
 
 def bootstrap():
@@ -111,6 +114,7 @@ def bootstrap():
     _ensure_environment()
     _run_anchor_generator()
     _ensure_geometry_actor()
+    _ensure_building_extrusion_actor()
     unreal.EditorLevelLibrary.save_current_level()
     unreal.log("InterVerseSG bootstrap complete: {}".format(LEVEL_PATH))
 
