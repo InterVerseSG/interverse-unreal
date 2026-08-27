@@ -65,6 +65,11 @@ bool UInterVerseNavigationComponent::NavigateToAnchor(const FString& NavigationA
         ? FString::Printf(TEXT("Navigated to %s"), *NavigationAnchor)
         : FString::Printf(TEXT("Teleport failed for %s"), *NavigationAnchor);
 
+    if (bTeleported)
+    {
+        StopGuidance();
+    }
+
     UE_LOG(LogTemp, Log, TEXT("InterVerseSG: %s"), *Message);
     OnNavigationFinished.Broadcast(bTeleported, Message);
     return bTeleported;
@@ -92,4 +97,48 @@ bool UInterVerseNavigationComponent::ExecuteValidatedCommand(const FInterVerseVa
     }
 
     return NavigateToAnchor(Command.NavigationAnchor);
+}
+
+bool UInterVerseNavigationComponent::StartGuidanceToAnchor(const FString& NavigationAnchor)
+{
+    if (!FindAnchorActor(NavigationAnchor))
+    {
+        const FString Message = FString::Printf(TEXT("Guidance anchor not found: %s"), *NavigationAnchor);
+        OnNavigationFinished.Broadcast(false, Message);
+        return false;
+    }
+
+    GuidanceAnchor = NavigationAnchor;
+    bGuidanceActive = true;
+    return UpdateGuidance();
+}
+
+void UInterVerseNavigationComponent::StopGuidance()
+{
+    bGuidanceActive = false;
+    GuidanceAnchor.Reset();
+    GuidanceDirection = FVector::ZeroVector;
+    GuidanceDistanceCm = 0.0f;
+}
+
+bool UInterVerseNavigationComponent::UpdateGuidance()
+{
+    AActor* OwnerActor = GetOwner();
+    if (!bGuidanceActive || !OwnerActor || GuidanceAnchor.IsEmpty())
+    {
+        return false;
+    }
+
+    AActor* Anchor = FindAnchorActor(GuidanceAnchor);
+    if (!Anchor)
+    {
+        StopGuidance();
+        return false;
+    }
+
+    FVector Delta = Anchor->GetActorLocation() - OwnerActor->GetActorLocation();
+    GuidanceDistanceCm = Delta.Size();
+    GuidanceDirection = Delta.GetSafeNormal();
+    OnGuidanceUpdated.Broadcast(GuidanceAnchor, GuidanceDirection, GuidanceDistanceCm);
+    return true;
 }
