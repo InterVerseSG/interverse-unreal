@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "InterVerseTypes.h"
 #include "InterVerseVRMenuWidget.generated.h"
 
 class UTextBlock;
@@ -24,6 +25,9 @@ private:
     UFUNCTION() void GuideCAI();
     UFUNCTION() void GuideStudentCenter();
     UFUNCTION() void GuideGraduateSchool();
+    UFUNCTION() void AskGraduateSchoolAI();
+    UFUNCTION() void HandleValidatedCommand(const FInterVerseValidatedCommand& Command);
+    UFUNCTION() void HandleCloudError(const FString& Message);
     UFUNCTION() void CloseMenu();
 
     UPROPERTY(Transient)
