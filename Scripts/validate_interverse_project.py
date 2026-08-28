@@ -16,6 +16,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 ANCHORS = ROOT / "Config" / "InterVerseCampusAnchors.json"
 ENGINE = ROOT / "Config" / "DefaultEngine.ini"
+GAME = ROOT / "Config" / "DefaultGame.ini"
+SCALABILITY = ROOT / "Config" / "DefaultScalability.ini"
 UPROJECT = ROOT / "InterVerseSG.uproject"
 
 EXPECTED_API = "https://interverse-api-yhqx.onrender.com"
@@ -35,8 +37,16 @@ def load_json(path: pathlib.Path):
         fail(f"Invalid JSON in {path.relative_to(ROOT)}: {exc}")
 
 
+def require_text(text: str, token: str, source: str) -> None:
+    if token not in text:
+        fail(f"Required Quest setting missing from {source}: {token}")
+
+
 def validate_uproject() -> None:
     data = load_json(UPROJECT)
+    if data.get("EngineAssociation") != "5.8":
+        fail("InterVerseSG must remain associated with Unreal Engine 5.8 until the Quest build is validated")
+
     modules = {m.get("Name") for m in data.get("Modules", [])}
     if "InterVerseRuntime" not in modules:
         fail("InterVerseRuntime module missing from .uproject")
@@ -108,6 +118,41 @@ def validate_engine_config() -> None:
     if int(target_match.group(1)) < 35:
         fail("Android TargetSDKVersion must be at least 35 for current Quest pipeline")
 
+    quest_settings = (
+        "bBuildForArm64=True",
+        "bBuildForX8664=False",
+        "bSupportsVulkan=True",
+        "bSupportsVulkanSM5=False",
+        "bPackageForMetaQuest=True",
+        "r.Mobile.ShadingPath=0",
+        "r.MobileHDR=False",
+        "r.ForwardShading=True",
+        "r.DefaultFeature.AntiAliasing=3",
+        "r.MSAACount=4",
+        "vr.InstancedStereo=True",
+        "vr.MobileMultiView=True",
+        "r.DefaultFeature.MotionBlur=False",
+        "r.DefaultFeature.Bloom=False",
+        "r.DefaultFeature.AmbientOcclusion=False",
+    )
+    for token in quest_settings:
+        require_text(text, token, "DefaultEngine.ini")
+
+
+def validate_quest_profile() -> None:
+    if not GAME.exists():
+        fail("Config/DefaultGame.ini missing")
+    game = GAME.read_text(encoding="utf-8")
+    require_text(game, "bStartInVR=True", "DefaultGame.ini")
+    require_text(game, "bCompressed=True", "DefaultGame.ini")
+    require_text(game, "bUseIoStore=True", "DefaultGame.ini")
+
+    if not SCALABILITY.exists():
+        fail("Config/DefaultScalability.ini missing")
+    scalability = SCALABILITY.read_text(encoding="utf-8")
+    for token in ("[ViewDistanceQuality@1]", "[ShadowQuality@1]", "[EffectsQuality@1]", "[FoliageQuality@1]"):
+        require_text(scalability, token, "DefaultScalability.ini")
+
 
 def validate_generated_json_if_present() -> None:
     optional_json = [
@@ -127,6 +172,7 @@ def main() -> int:
         ("uproject", validate_uproject),
         ("anchors", validate_anchors),
         ("engine config", validate_engine_config),
+        ("Quest profile", validate_quest_profile),
         ("generated JSON", validate_generated_json_if_present),
     ]
     for name, check in checks:
