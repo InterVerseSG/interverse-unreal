@@ -1,17 +1,19 @@
 """Create the initial InterVerseSG San German editor level.
 
 Run inside Unreal Editor with Python Editor Script Plugin enabled.
-The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, adds a basic
-lighting rig if missing, runs the NAV anchor generator, adds verified terrain,
+The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, applies a Quest-safe
+tropical daylight profile, runs the NAV anchor generator, adds verified terrain,
 campus geometry, batched procedural buildings, mapped circulation surfaces,
 Quest-optimized HISM foliage and mapped campus props when available, plus a
 minimal OpenXR pawn.
 """
 
+import json
 import os
 import unreal
 
 LEVEL_PATH = "/Game/Maps/LV_InterVerse_SanGerman"
+ENV_PROFILE = os.path.join(unreal.Paths.project_dir(), "Config", "InterVerseQuestEnvironment.json")
 
 
 def _actor_with_label(label):
@@ -34,6 +36,26 @@ def _ensure_actor(actor_class, label, location, rotation=None):
     return actor
 
 
+def _safe_set(obj, name, value):
+    try:
+        obj.set_editor_property(name, value)
+        return True
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG environment property {} could not be set: {}".format(name, exc))
+        return False
+
+
+def _load_environment_profile():
+    if not os.path.exists(ENV_PROFILE):
+        return {}
+    try:
+        with open(ENV_PROFILE, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG environment profile could not be read: {}".format(exc))
+        return {}
+
+
 def _ensure_level():
     if unreal.EditorAssetLibrary.does_asset_exist(LEVEL_PATH):
         unreal.EditorLevelLibrary.load_level(LEVEL_PATH)
@@ -42,15 +64,48 @@ def _ensure_level():
 
 
 def _ensure_environment():
-    _ensure_actor(
+    profile = _load_environment_profile()
+    sun_cfg = profile.get("sun", {})
+    sky_cfg = profile.get("skylight", {})
+    atmosphere_cfg = profile.get("atmosphere", {})
+
+    sun_rotation = unreal.Rotator(
+        float(sun_cfg.get("rotation_pitch", -48.0)),
+        float(sun_cfg.get("rotation_yaw", -28.0)),
+        float(sun_cfg.get("rotation_roll", 0.0)),
+    )
+    sun = _ensure_actor(
         unreal.DirectionalLight,
         "IV_DirectionalLight",
         unreal.Vector(0.0, 0.0, 500.0),
-        unreal.Rotator(-45.0, -30.0, 0.0),
+        sun_rotation,
     )
-    _ensure_actor(unreal.SkyLight, "IV_SkyLight", unreal.Vector(0.0, 0.0, 300.0))
-    _ensure_actor(unreal.SkyAtmosphere, "IV_SkyAtmosphere", unreal.Vector(0.0, 0.0, 0.0))
-    _ensure_actor(unreal.ExponentialHeightFog, "IV_HeightFog", unreal.Vector(0.0, 0.0, 0.0))
+    try:
+        sun.set_actor_rotation(sun_rotation, False)
+    except Exception:
+        pass
+    light = sun.get_component_by_class(unreal.DirectionalLightComponent)
+    if light:
+        _safe_set(light, "intensity", float(sun_cfg.get("intensity", 6.0)))
+        rgb = sun_cfg.get("color_rgb", [255, 244, 222])
+        _safe_set(light, "light_color", unreal.Color(int(rgb[0]), int(rgb[1]), int(rgb[2]), 255))
+        _safe_set(light, "cast_shadows", bool(sun_cfg.get("cast_shadows", True)))
+
+    sky = _ensure_actor(unreal.SkyLight, "IV_SkyLight", unreal.Vector(0.0, 0.0, 300.0))
+    sky_light = sky.get_component_by_class(unreal.SkyLightComponent)
+    if sky_light:
+        _safe_set(sky_light, "intensity_scale", float(sky_cfg.get("intensity_scale", 0.85)))
+        _safe_set(sky_light, "real_time_capture", bool(sky_cfg.get("real_time_capture", False)))
+
+    if atmosphere_cfg.get("enabled", True):
+        _ensure_actor(unreal.SkyAtmosphere, "IV_SkyAtmosphere", unreal.Vector(0.0, 0.0, 0.0))
+
+    fog = _ensure_actor(unreal.ExponentialHeightFog, "IV_HeightFog", unreal.Vector(0.0, 0.0, 0.0))
+    fog_component = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
+    if fog_component:
+        _safe_set(fog_component, "fog_density", float(atmosphere_cfg.get("height_fog_density", 0.0)))
+
+    unreal.log("InterVerseSG Quest tropical daylight environment profile applied.")
 
 
 def _run_anchor_generator():
