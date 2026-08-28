@@ -1,10 +1,11 @@
 #include "InterVerseVRHudWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
-#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "InterVerseCloudClient.h"
 #include "InterVerseNavigationComponent.h"
 #include "InterVerseXRPawn.h"
