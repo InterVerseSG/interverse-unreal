@@ -32,8 +32,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
     bool bCreateCollision = false;
 
-    // Quest-friendly compromise: a small number of spatial batches rather than
-    // one draw call per building. Each section can then be hidden independently.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
     bool bEnableRuntimeSectorCulling = true;
 
@@ -69,6 +67,8 @@ protected:
     virtual void BeginPlay() override;
 
 private:
+    FTimerHandle SectorVisibilityTimer;
+
     bool ParseAndBuild(const FString& JsonText);
     bool LoadSectorDefinitions(TArray<FString>& OutIds, TArray<FVector2D>& OutCenters) const;
     int32 FindNearestSector(const FVector2D& Point, const TArray<FVector2D>& Centers) const;
