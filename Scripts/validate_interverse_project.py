@@ -25,6 +25,9 @@ BUILDINGS_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseB
 FOLIAGE_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseFoliageActor.h"
 FOLIAGE_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseFoliageActor.cpp"
 FOLIAGE_FETCHER = ROOT / "Scripts" / "fetch_osm_foliage.py"
+PROPS_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseCampusPropsActor.h"
+PROPS_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseCampusPropsActor.cpp"
+PROPS_FETCHER = ROOT / "Scripts" / "fetch_osm_campus_props.py"
 BOOTSTRAP = ROOT / "Scripts" / "bootstrap_interverse_level.py"
 
 EXPECTED_API = "https://interverse-api-yhqx.onrender.com"
@@ -203,7 +206,10 @@ def validate_quest_profile() -> None:
 
 
 def validate_quest_scene_architecture() -> None:
-    for path in (BUILDINGS_H, BUILDINGS_CPP, FOLIAGE_H, FOLIAGE_CPP, FOLIAGE_FETCHER, BOOTSTRAP):
+    for path in (
+        BUILDINGS_H, BUILDINGS_CPP, FOLIAGE_H, FOLIAGE_CPP, FOLIAGE_FETCHER,
+        PROPS_H, PROPS_CPP, PROPS_FETCHER, BOOTSTRAP,
+    ):
         if not path.exists():
             fail(f"Missing Quest optimization source: {path.relative_to(ROOT)}")
 
@@ -251,9 +257,33 @@ def validate_quest_scene_architecture() -> None:
     require_text(fetcher, 'node["natural"="tree"]', "fetch_osm_foliage.py")
     require_text(fetcher, '"source": "OpenStreetMap natural=tree"', "fetch_osm_foliage.py")
 
+    props_h = PROPS_H.read_text(encoding="utf-8")
+    props_cpp = PROPS_CPP.read_text(encoding="utf-8")
+    props_fetcher = PROPS_FETCHER.read_text(encoding="utf-8")
+    for token in (
+        "BenchStandard", "BenchPriority", "LampStandard", "LampPriority",
+        "SignStandard", "SignPriority", "PriorityEndCullDistanceCm",
+    ):
+        require_text(props_h, token, "InterVerseCampusPropsActor.h")
+    for token in (
+        "UHierarchicalInstancedStaticMeshComponent", "SetCullDistances",
+        "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+        "SetCanEverAffectNavigation(false)", "AddInstance",
+    ):
+        require_text(props_cpp, token, "InterVerseCampusPropsActor.cpp")
+    for token in (
+        'node[\\"amenity\\"=\\"bench\\"]',
+        'node[\\"highway\\"=\\"street_lamp\\"]',
+        'node[\\"tourism\\"=\\"information\\"]',
+        'PRIORITY_NAVS = {"NAV_EscuelaGraduada", "NAV_CAI", "NAV_CentroEstudiantes"}',
+    ):
+        require_text(props_fetcher, token, "fetch_osm_campus_props.py")
+    if "PRIORITY_RADIUS_M = 90.0" not in props_fetcher:
+        fail("Campus prop priority radius changed without performance review")
+
     bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
-    require_text(bootstrap, "_ensure_foliage_actor", "bootstrap_interverse_level.py")
-    require_text(bootstrap, "IV_CampusFoliage", "bootstrap_interverse_level.py")
+    for token in ("_ensure_foliage_actor", "IV_CampusFoliage", "_ensure_props_actor", "IV_CampusProps"):
+        require_text(bootstrap, token, "bootstrap_interverse_level.py")
 
 
 def validate_generated_json_if_present() -> None:
@@ -261,6 +291,7 @@ def validate_generated_json_if_present() -> None:
         ROOT / "Config" / "InterVerseCampusGeometry.local.json",
         ROOT / "Config" / "InterVerseCampusSurfaces.local.json",
         ROOT / "Config" / "InterVerseFoliage.local.json",
+        ROOT / "Config" / "InterVerseCampusProps.local.json",
         ROOT / "Data" / "campus_terrain_grid.json",
         ROOT / "Data" / "campus_geometry.geojson",
         ROOT / "Data" / "campus_surfaces.geojson",
