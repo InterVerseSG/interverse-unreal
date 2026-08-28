@@ -20,24 +20,40 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Geometry")
     FString GeometryJsonRelativePath = TEXT("Config/InterVerseCampusGeometry.local.json");
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Geometry")
+    FString SectorJsonRelativePath = TEXT("Config/InterVerseCampusSectors.json");
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Geometry", meta=(ClampMin="100.0"))
     float DefaultBuildingHeightCm = 400.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Geometry", meta=(ClampMin="100.0"))
     float FloorHeightCm = 300.0f;
 
-    // Keep collision off for the large visual campus batch on Quest. Navigation and
-    // interaction collision should be supplied by simpler dedicated primitives.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
     bool bCreateCollision = false;
 
-    // All compatible building footprints are merged into one procedural mesh section.
-    // This is intentionally enabled by design for standalone Quest draw-call reduction.
+    // Quest-friendly compromise: a small number of spatial batches rather than
+    // one draw call per building. Each section can then be hidden independently.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
+    bool bEnableRuntimeSectorCulling = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance", meta=(ClampMin="10000.0"))
+    float ActiveSectorRadiusCm = 36000.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance", meta=(ClampMin="0.1"))
+    float SectorUpdateIntervalSeconds = 0.5f;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
     int32 LastBuiltPolygonCount = 0;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
     int32 LastMeshSectionCount = 0;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
+    TArray<FString> BuiltSectorIds;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
+    TArray<FVector2D> BuiltSectorCentersCm;
 
     UFUNCTION(BlueprintCallable, CallInEditor, Category="InterVerse")
     bool RebuildBuildings();
@@ -45,11 +61,17 @@ public:
     UFUNCTION(BlueprintCallable, CallInEditor, Category="InterVerse")
     void ClearBuildings();
 
+    UFUNCTION(BlueprintCallable, Category="InterVerse|Performance")
+    void UpdateSectorVisibility();
+
 protected:
     virtual void OnConstruction(const FTransform& Transform) override;
+    virtual void BeginPlay() override;
 
 private:
     bool ParseAndBuild(const FString& JsonText);
+    bool LoadSectorDefinitions(TArray<FString>& OutIds, TArray<FVector2D>& OutCenters) const;
+    int32 FindNearestSector(const FVector2D& Point, const TArray<FVector2D>& Centers) const;
     float ResolveHeightCm(const TSharedPtr<class FJsonObject>& Properties) const;
     float ResolveBaseZCm(const TSharedPtr<class FJsonObject>& Properties) const;
 
