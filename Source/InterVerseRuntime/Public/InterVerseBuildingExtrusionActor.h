@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "InterVerseBuildingExtrusionActor.generated.h"
 
+class UMaterialInterface;
 class UProceduralMeshComponent;
 
 UCLASS(BlueprintType)
@@ -40,6 +41,25 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance", meta=(ClampMin="0.1"))
     float SectorUpdateIntervalSeconds = 0.5f;
+
+    // Shared mobile materials: all sectors reuse the same material instances.
+    // Near may contain one inexpensive facade atlas; Far should remain flat/opaque.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials")
+    TObjectPtr<UMaterialInterface> NearBuildingMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials")
+    TObjectPtr<UMaterialInterface> FarBuildingMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials", meta=(ClampMin="5000.0"))
+    float NearMaterialDistanceCm = 18000.0f;
+
+    // UV scale in centimeters. One facade atlas tile repeats approximately every 4 m horizontally
+    // and every 3 m vertically by default, matching a typical floor rhythm without extra geometry.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials", meta=(ClampMin="50.0"))
+    float FacadeURepeatCm = 400.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials", meta=(ClampMin="50.0"))
+    float FacadeVRepeatCm = 300.0f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
     int32 LastBuiltPolygonCount = 0;
@@ -80,7 +100,9 @@ private:
         float BaseZCm,
         float HeightCm,
         TArray<FVector>& Vertices,
-        TArray<int32>& Triangles) const;
+        TArray<int32>& Triangles,
+        TArray<FVector2D>& UV0,
+        TArray<FLinearColor>& VertexColors) const;
 
     static bool TriangulatePolygon(
         const TArray<FVector2D>& Polygon,
