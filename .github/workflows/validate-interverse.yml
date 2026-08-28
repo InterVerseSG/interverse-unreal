@@ -26,6 +26,9 @@ jobs:
       - name: Validate project data and configuration
         run: python Scripts/validate_interverse_project.py
 
+      - name: Validate Quest VR menu
+        run: python Scripts/validate_vr_menu.py
+
       - name: Check InterVerse API health
         shell: bash
         run: |
