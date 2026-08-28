@@ -1,0 +1,31 @@
+{
+  "version": "0.1.0",
+  "profile": "Puerto Rico tropical daylight - Quest",
+  "policy": "Low-cost outdoor lighting for standalone Meta Quest. No volumetric clouds and no expensive post-processing.",
+  "sun": {
+    "rotation_pitch": -48.0,
+    "rotation_yaw": -28.0,
+    "rotation_roll": 0.0,
+    "intensity": 6.0,
+    "color_rgb": [255, 244, 222],
+    "cast_shadows": true
+  },
+  "skylight": {
+    "intensity_scale": 0.85,
+    "real_time_capture": false
+  },
+  "atmosphere": {
+    "enabled": true,
+    "volumetric_clouds": false,
+    "height_fog_density": 0.0
+  },
+  "quest": {
+    "dynamic_shadow_distance_cm": 18000,
+    "max_shadow_cascades": 2,
+    "shadow_map_resolution": 1024,
+    "bloom": false,
+    "motion_blur": false,
+    "ambient_occlusion": false,
+    "auto_exposure": false
+  }
+}
