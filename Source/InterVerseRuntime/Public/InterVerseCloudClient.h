@@ -32,6 +32,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Cloud")
     bool bAutoExecuteValidatedNavigation = true;
 
+    /** Quest comfort default: validated AI navigation starts guidance instead of instant teleport. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Cloud|Quest")
+    bool bValidatedNavigationStartsGuidance = true;
+
     UFUNCTION(BlueprintCallable, Category="InterVerse|Cloud")
     void AskAssistant(const FInterVerseAssistantRequest& Request);
 
