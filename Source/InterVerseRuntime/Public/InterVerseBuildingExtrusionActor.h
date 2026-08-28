@@ -42,8 +42,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance", meta=(ClampMin="0.1"))
     float SectorUpdateIntervalSeconds = 0.5f;
 
-    // Shared mobile materials: all sectors reuse the same material instances.
-    // Near may contain one inexpensive facade atlas; Far should remain flat/opaque.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials")
     TObjectPtr<UMaterialInterface> NearBuildingMaterial = nullptr;
 
@@ -53,8 +51,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials", meta=(ClampMin="5000.0"))
     float NearMaterialDistanceCm = 18000.0f;
 
-    // UV scale in centimeters. One facade atlas tile repeats approximately every 4 m horizontally
-    // and every 3 m vertically by default, matching a typical floor rhythm without extra geometry.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Quest Materials", meta=(ClampMin="50.0"))
     float FacadeURepeatCm = 400.0f;
 
@@ -88,6 +84,7 @@ protected:
 
 private:
     FTimerHandle SectorVisibilityTimer;
+    TArray<bool> SectorUsesNearMaterial;
 
     bool ParseAndBuild(const FString& JsonText);
     bool LoadSectorDefinitions(TArray<FString>& OutIds, TArray<FVector2D>& OutCenters) const;
