@@ -2,6 +2,8 @@
 
 #include "Engine/TargetPoint.h"
 #include "Kismet/GameplayStatics.h"
+#include "NavigationPath.h"
+#include "NavigationSystem.h"
 
 UInterVerseNavigationComponent::UInterVerseNavigationComponent()
 {
@@ -99,9 +101,51 @@ bool UInterVerseNavigationComponent::ExecuteValidatedCommand(const FInterVerseVa
     return NavigateToAnchor(Command.NavigationAnchor);
 }
 
+bool UInterVerseNavigationComponent::BuildGuidancePath(const FVector& Start, const FVector& End)
+{
+    GuidancePathPoints.Reset();
+    GuidancePointIndex = 0;
+    bGuidanceUsingNavMesh = false;
+
+    if (!bUseNavMeshGuidance || !GetWorld())
+    {
+        return false;
+    }
+
+    UNavigationPath* Path = UNavigationSystemV1::FindPathToLocationSynchronously(
+        GetWorld(), Start, End, GetOwner()
+    );
+    if (!Path || !Path->IsValid() || Path->PathPoints.Num() < 2)
+    {
+        return false;
+    }
+
+    GuidancePathPoints = Path->PathPoints;
+    GuidancePointIndex = 1;
+    bGuidanceUsingNavMesh = true;
+    return true;
+}
+
+float UInterVerseNavigationComponent::RemainingPathDistanceFrom(const FVector& CurrentLocation) const
+{
+    if (!bGuidanceUsingNavMesh || GuidancePathPoints.Num() < 2 || !GuidancePathPoints.IsValidIndex(GuidancePointIndex))
+    {
+        return 0.0f;
+    }
+
+    float Total = FVector::Distance(CurrentLocation, GuidancePathPoints[GuidancePointIndex]);
+    for (int32 Index = GuidancePointIndex; Index < GuidancePathPoints.Num() - 1; ++Index)
+    {
+        Total += FVector::Distance(GuidancePathPoints[Index], GuidancePathPoints[Index + 1]);
+    }
+    return Total;
+}
+
 bool UInterVerseNavigationComponent::StartGuidanceToAnchor(const FString& NavigationAnchor)
 {
-    if (!FindAnchorActor(NavigationAnchor))
+    AActor* OwnerActor = GetOwner();
+    AActor* Anchor = FindAnchorActor(NavigationAnchor);
+    if (!OwnerActor || !Anchor)
     {
         const FString Message = FString::Printf(TEXT("Guidance anchor not found: %s"), *NavigationAnchor);
         OnNavigationFinished.Broadcast(false, Message);
@@ -110,15 +154,19 @@ bool UInterVerseNavigationComponent::StartGuidanceToAnchor(const FString& Naviga
 
     GuidanceAnchor = NavigationAnchor;
     bGuidanceActive = true;
+    BuildGuidancePath(OwnerActor->GetActorLocation(), Anchor->GetActorLocation());
     return UpdateGuidance();
 }
 
 void UInterVerseNavigationComponent::StopGuidance()
 {
     bGuidanceActive = false;
+    bGuidanceUsingNavMesh = false;
     GuidanceAnchor.Reset();
     GuidanceDirection = FVector::ZeroVector;
     GuidanceDistanceCm = 0.0f;
+    GuidancePathPoints.Reset();
+    GuidancePointIndex = 0;
 }
 
 bool UInterVerseNavigationComponent::UpdateGuidance()
@@ -136,9 +184,31 @@ bool UInterVerseNavigationComponent::UpdateGuidance()
         return false;
     }
 
-    FVector Delta = Anchor->GetActorLocation() - OwnerActor->GetActorLocation();
+    const FVector CurrentLocation = OwnerActor->GetActorLocation();
+
+    if (bGuidanceUsingNavMesh && GuidancePathPoints.IsValidIndex(GuidancePointIndex))
+    {
+        while (GuidancePathPoints.IsValidIndex(GuidancePointIndex)
+            && FVector::Distance(CurrentLocation, GuidancePathPoints[GuidancePointIndex]) <= GuidanceWaypointAcceptanceCm
+            && GuidancePointIndex < GuidancePathPoints.Num() - 1)
+        {
+            ++GuidancePointIndex;
+        }
+
+        if (GuidancePathPoints.IsValidIndex(GuidancePointIndex))
+        {
+            FVector Delta = GuidancePathPoints[GuidancePointIndex] - CurrentLocation;
+            GuidanceDirection = Delta.GetSafeNormal();
+            GuidanceDistanceCm = RemainingPathDistanceFrom(CurrentLocation);
+            OnGuidanceUpdated.Broadcast(GuidanceAnchor, GuidanceDirection, GuidanceDistanceCm);
+            return true;
+        }
+    }
+
+    FVector Delta = Anchor->GetActorLocation() - CurrentLocation;
     GuidanceDistanceCm = Delta.Size();
     GuidanceDirection = Delta.GetSafeNormal();
+    bGuidanceUsingNavMesh = false;
     OnGuidanceUpdated.Broadcast(GuidanceAnchor, GuidanceDirection, GuidanceDistanceCm);
     return true;
 }
