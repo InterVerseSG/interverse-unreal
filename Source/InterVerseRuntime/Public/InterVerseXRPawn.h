@@ -16,6 +16,8 @@ class UInputMappingContext;
 class UProceduralMeshComponent;
 class UArrowComponent;
 class UTextRenderComponent;
+class UWidgetComponent;
+class UWidgetInteractionComponent;
 
 UCLASS(BlueprintType)
 class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
@@ -59,6 +61,12 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
     TObjectPtr<UTextRenderComponent> GuidanceText;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Menu")
+    TObjectPtr<UWidgetComponent> VRMenuWidget;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Menu")
+    TObjectPtr<UWidgetInteractionComponent> RightWidgetInteraction;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|XR|Input")
     bool bEnableRuntimeQuestMappings = true;
 
@@ -68,12 +76,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals")
     float TeleportMarkerRadiusCm = 22.0f;
 
+    UFUNCTION(BlueprintCallable, Category="InterVerse|VR|Menu")
+    void SetVRMenuVisible(bool bVisible);
+
+    UFUNCTION(BlueprintPure, Category="InterVerse|VR|Menu")
+    bool IsVRMenuVisible() const;
+
 private:
     void EnsureEnhancedInputMappings();
     void BindEnhancedInput(UInputComponent* PlayerInputComponent);
     void UpdateTeleportVisual();
     void ClearTeleportVisual();
     void UpdateGuidanceVisual();
+    void ToggleVRMenu();
 
     void InputMoveForward(float Value);
     void InputMoveRight(float Value);
@@ -86,6 +101,7 @@ private:
     void EnhancedTurn(const FInputActionValue& Value);
     void EnhancedTeleportStarted(const FInputActionValue& Value);
     void EnhancedTeleportCompleted(const FInputActionValue& Value);
+    void EnhancedMenuStarted(const FInputActionValue& Value);
 
     UPROPERTY(Transient)
     TObjectPtr<UInputMappingContext> RuntimeMappingContext;
@@ -101,6 +117,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UInputAction> TeleportAction;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInputAction> MenuAction;
 
     float MoveForwardValue = 0.0f;
     float MoveRightValue = 0.0f;
