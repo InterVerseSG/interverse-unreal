@@ -1,0 +1,65 @@
+{
+  "version": "0.1.0",
+  "coordinate_system": "local Unreal centimeters",
+  "purpose": "Quest runtime visibility sectors; technical culling zones, not institutional boundaries",
+  "sectors": [
+    {
+      "id": "SECTOR_EAST_CENTRAL",
+      "display_name": "Este y núcleo central",
+      "center_x_cm": 2500,
+      "center_y_cm": 9000,
+      "radius_cm": 21000,
+      "priority_anchors": [
+        "NAV_MarquisScienceHall",
+        "NAV_FellowshipHall",
+        "NAV_CapillaPaulAWolfe",
+        "NAV_CarlosJTorres",
+        "NAV_LeopoldoOrtizJusino",
+        "NAV_KeiwingCottage"
+      ]
+    },
+    {
+      "id": "SECTOR_WEST_ACADEMIC",
+      "display_name": "Oeste académico y servicios",
+      "center_x_cm": -25000,
+      "center_y_cm": 5500,
+      "radius_cm": 21000,
+      "priority_anchors": [
+        "NAV_CAI",
+        "NAV_CentroEstudiantes",
+        "NAV_EusebioLopezAcosta"
+      ]
+    },
+    {
+      "id": "SECTOR_NORTH",
+      "display_name": "Norte del campus",
+      "center_x_cm": -6500,
+      "center_y_cm": 30000,
+      "radius_cm": 23000,
+      "priority_anchors": [
+        "NAV_CostelloHall",
+        "NAV_CampusMain"
+      ]
+    },
+    {
+      "id": "SECTOR_WEST_EEGEI_SPORTS",
+      "display_name": "Oeste, EEGEI y complejo deportivo",
+      "center_x_cm": -45500,
+      "center_y_cm": 4500,
+      "radius_cm": 25000,
+      "priority_anchors": [
+        "NAV_EscuelaGraduada",
+        "NAV_CampusSchoolAnexo2",
+        "NAV_PhranerHall",
+        "NAV_PolideportivoSambolin",
+        "NAV_PistaSambolin"
+      ]
+    }
+  ],
+  "runtime": {
+    "active_radius_cm": 26000,
+    "preload_radius_cm": 36000,
+    "update_interval_seconds": 0.5,
+    "always_visible_tags": ["InterVerseAlwaysVisible"]
+  }
+}
