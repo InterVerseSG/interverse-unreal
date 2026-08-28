@@ -3,8 +3,8 @@
 Run inside Unreal Editor with Python Editor Script Plugin enabled.
 The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, adds a basic
 lighting rig if missing, runs the NAV anchor generator, adds verified terrain,
-campus geometry, procedural building extrusion, mapped circulation surfaces,
-and a minimal OpenXR pawn for Meta Quest testing.
+campus geometry, batched procedural buildings, mapped circulation surfaces,
+Quest-optimized HISM foliage when available, and a minimal OpenXR pawn.
 """
 
 import os
@@ -69,16 +69,12 @@ def _data_exists(filename):
 
 def _ensure_terrain_actor():
     if not _data_exists("campus_terrain_grid.json"):
-        unreal.log_warning(
-            "InterVerseSG terrain grid is not built yet. Run python Scripts/build_campus_terrain.py outside Unreal first."
-        )
+        unreal.log_warning("InterVerseSG terrain grid is not built yet. Run python Scripts/build_campus_terrain.py outside Unreal first.")
         return
-
     actor_class = getattr(unreal, "InterVerseTerrainActor", None)
     if actor_class is None:
         unreal.log_warning("InterVerseTerrainActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
         return
-
     actor = _ensure_actor(actor_class, "IV_CampusTerrain", unreal.Vector(0.0, 0.0, 0.0))
     try:
         actor.rebuild_terrain()
@@ -90,12 +86,10 @@ def _ensure_geometry_actor():
     if not _config_exists("InterVerseCampusGeometry.local.json"):
         unreal.log_warning("InterVerseSG geometry config is not built yet. Run python Scripts/build_campus_geometry.py outside Unreal first.")
         return
-
     actor_class = getattr(unreal, "InterVerseCampusGeometryActor", None)
     if actor_class is None:
         unreal.log_warning("InterVerseCampusGeometryActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
         return
-
     actor = _ensure_actor(actor_class, "IV_CampusGeometry", unreal.Vector(0.0, 0.0, 0.0))
     try:
         actor.rebuild_geometry()
@@ -106,12 +100,10 @@ def _ensure_geometry_actor():
 def _ensure_building_extrusion_actor():
     if not _config_exists("InterVerseCampusGeometry.local.json"):
         return
-
     actor_class = getattr(unreal, "InterVerseBuildingExtrusionActor", None)
     if actor_class is None:
         unreal.log_warning("InterVerseBuildingExtrusionActor C++ class is unavailable. Ensure ProceduralMeshComponent is enabled, compile the project, then rerun the bootstrap.")
         return
-
     actor = _ensure_actor(actor_class, "IV_CampusBuildings", unreal.Vector(0.0, 0.0, 0.0))
     try:
         actor.rebuild_buildings()
@@ -123,17 +115,32 @@ def _ensure_surface_actor():
     if not _config_exists("InterVerseCampusSurfaces.local.json"):
         unreal.log_warning("InterVerseSG circulation/surface config is not built yet. Run python Scripts/build_campus_geometry.py outside Unreal first.")
         return
-
     actor_class = getattr(unreal, "InterVerseCampusSurfaceActor", None)
     if actor_class is None:
         unreal.log_warning("InterVerseCampusSurfaceActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
         return
-
     actor = _ensure_actor(actor_class, "IV_CampusSurfaces", unreal.Vector(0.0, 0.0, 0.0))
     try:
         actor.rebuild_surfaces()
     except Exception as exc:
         unreal.log_warning("InterVerseSG campus surface rebuild warning: {}".format(exc))
+
+
+def _ensure_foliage_actor():
+    if not _config_exists("InterVerseFoliage.local.json"):
+        unreal.log_warning("InterVerseSG foliage data not built yet. Optional: run python Scripts/fetch_osm_foliage.py outside Unreal.")
+        return
+    actor_class = getattr(unreal, "InterVerseFoliageActor", None)
+    if actor_class is None:
+        unreal.log_warning("InterVerseFoliageActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
+        return
+    actor = _ensure_actor(actor_class, "IV_CampusFoliage", unreal.Vector(0.0, 0.0, 0.0))
+    # A lightweight mobile tree Static Mesh still needs to be assigned in the editor.
+    # Rebuild is safe even before that asset is assigned; the actor will log the requirement.
+    try:
+        actor.rebuild_foliage()
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG foliage rebuild warning: {}".format(exc))
 
 
 def _find_anchor_location(anchor_name):
@@ -148,8 +155,6 @@ def _ensure_xr_pawn():
     if actor_class is None:
         unreal.log_warning("InterVerseXRPawn C++ class is unavailable. Compile the project, then rerun the bootstrap.")
         return
-
-    # Marquis is currently the coordinate origin and provides a verified safe test start.
     start = _find_anchor_location("NAV_MarquisScienceHall")
     start.z += 10.0
     pawn = _ensure_actor(actor_class, "IV_XRPawn", start)
@@ -164,6 +169,7 @@ def bootstrap():
     _ensure_geometry_actor()
     _ensure_building_extrusion_actor()
     _ensure_surface_actor()
+    _ensure_foliage_actor()
     _ensure_xr_pawn()
     unreal.EditorLevelLibrary.save_current_level()
     unreal.log("InterVerseSG bootstrap complete: {}".format(LEVEL_PATH))
