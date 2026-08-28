@@ -16,13 +16,17 @@ class INTERVERSERUNTIME_API UInterVerseNavigationComponent : public UActorCompon
 public:
     UInterVerseNavigationComponent();
 
-    /** Optional vertical offset added to the NAV TargetPoint before teleporting. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Navigation")
     float DestinationZOffsetCm = 0.0f;
 
-    /** If true, preserve the controlled actor's current rotation. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Navigation")
     bool bPreserveRotation = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Navigation|Guidance")
+    bool bUseNavMeshGuidance = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Navigation|Guidance", meta=(ClampMin="50.0"))
+    float GuidanceWaypointAcceptanceCm = 180.0f;
 
     UPROPERTY(BlueprintAssignable, Category="InterVerse|Navigation")
     FInterVerseNavigationResult OnNavigationFinished;
@@ -60,11 +64,19 @@ public:
     UFUNCTION(BlueprintPure, Category="InterVerse|Navigation|Guidance")
     FVector GetGuidanceDirection() const { return GuidanceDirection; }
 
+    UFUNCTION(BlueprintPure, Category="InterVerse|Navigation|Guidance")
+    bool IsUsingNavMeshGuidance() const { return bGuidanceUsingNavMesh; }
+
 private:
     bool HasAnchorTag(const AActor* Actor, const FString& NavigationAnchor) const;
+    bool BuildGuidancePath(const FVector& Start, const FVector& End);
+    float RemainingPathDistanceFrom(const FVector& CurrentLocation) const;
 
     bool bGuidanceActive = false;
+    bool bGuidanceUsingNavMesh = false;
     FString GuidanceAnchor;
     FVector GuidanceDirection = FVector::ZeroVector;
     float GuidanceDistanceCm = 0.0f;
+    TArray<FVector> GuidancePathPoints;
+    int32 GuidancePointIndex = 0;
 };
