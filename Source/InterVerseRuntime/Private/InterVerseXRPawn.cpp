@@ -5,14 +5,18 @@
 #include "Components/InputComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Components/WidgetInteractionComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
+#include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InterVerseCloudClient.h"
 #include "InterVerseNavigationComponent.h"
 #include "InterVerseVRLocomotionComponent.h"
+#include "InterVerseVRMenuWidget.h"
 #include "MotionControllerComponent.h"
 #include "ProceduralMeshComponent.h"
 
@@ -58,12 +62,31 @@ AInterVerseXRPawn::AInterVerseXRPawn()
     GuidanceText->SetHorizontalAlignment(EHTA_Center);
     GuidanceText->SetWorldSize(7.0f);
     GuidanceText->SetHiddenInGame(true);
+
+    VRMenuWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("VRMenuWidget"));
+    VRMenuWidget->SetupAttachment(Camera);
+    VRMenuWidget->SetWidgetSpace(EWidgetSpace::World);
+    VRMenuWidget->SetWidgetClass(UInterVerseVRMenuWidget::StaticClass());
+    VRMenuWidget->SetDrawSize(FVector2D(900.0f, 700.0f));
+    VRMenuWidget->SetPivot(FVector2D(0.5f, 0.5f));
+    VRMenuWidget->SetRelativeLocation(FVector(120.0f, 0.0f, -5.0f));
+    VRMenuWidget->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+    VRMenuWidget->SetRelativeScale3D(FVector(0.10f));
+    VRMenuWidget->SetTwoSided(true);
+    VRMenuWidget->SetVisibility(false, true);
+
+    RightWidgetInteraction = CreateDefaultSubobject<UWidgetInteractionComponent>(TEXT("RightWidgetInteraction"));
+    RightWidgetInteraction->SetupAttachment(RightController);
+    RightWidgetInteraction->InteractionDistance = 500.0f;
+    RightWidgetInteraction->InteractionSource = EWidgetInteractionSource::World;
+    RightWidgetInteraction->bShowDebug = false;
 }
 
 void AInterVerseXRPawn::BeginPlay()
 {
     Super::BeginPlay();
     EnsureEnhancedInputMappings();
+    SetVRMenuVisible(false);
 }
 
 void AInterVerseXRPawn::EnsureEnhancedInputMappings()
@@ -85,11 +108,15 @@ void AInterVerseXRPawn::EnsureEnhancedInputMappings()
         TurnAction->ValueType = EInputActionValueType::Axis1D;
         TeleportAction = NewObject<UInputAction>(this, TEXT("IV_IA_Teleport"));
         TeleportAction->ValueType = EInputActionValueType::Boolean;
+        MenuAction = NewObject<UInputAction>(this, TEXT("IV_IA_Menu"));
+        MenuAction->ValueType = EInputActionValueType::Boolean;
 
         RuntimeMappingContext->MapKey(MoveForwardAction, FKey(FName(TEXT("OculusTouch_Left_Thumbstick_Y"))));
         RuntimeMappingContext->MapKey(MoveRightAction, FKey(FName(TEXT("OculusTouch_Left_Thumbstick_X"))));
         RuntimeMappingContext->MapKey(TurnAction, FKey(FName(TEXT("OculusTouch_Right_Thumbstick_X"))));
         RuntimeMappingContext->MapKey(TeleportAction, FKey(FName(TEXT("OculusTouch_Right_Trigger_Click"))));
+        RuntimeMappingContext->MapKey(MenuAction, FKey(FName(TEXT("OculusTouch_Left_X_Click"))));
+        RuntimeMappingContext->MapKey(MenuAction, FKey(FName(TEXT("OculusTouch_Left_Menu_Click"))));
     }
 
     APlayerController* PC = Cast<APlayerController>(GetController());
@@ -107,7 +134,7 @@ void AInterVerseXRPawn::EnsureEnhancedInputMappings()
 void AInterVerseXRPawn::BindEnhancedInput(UInputComponent* PlayerInputComponent)
 {
     UEnhancedInputComponent* Enhanced = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-    if (!Enhanced || !MoveForwardAction || !MoveRightAction || !TurnAction || !TeleportAction)
+    if (!Enhanced || !MoveForwardAction || !MoveRightAction || !TurnAction || !TeleportAction || !MenuAction)
     {
         return;
     }
@@ -120,6 +147,7 @@ void AInterVerseXRPawn::BindEnhancedInput(UInputComponent* PlayerInputComponent)
     Enhanced->BindAction(TurnAction, ETriggerEvent::Completed, this, &AInterVerseXRPawn::EnhancedTurn);
     Enhanced->BindAction(TeleportAction, ETriggerEvent::Started, this, &AInterVerseXRPawn::EnhancedTeleportStarted);
     Enhanced->BindAction(TeleportAction, ETriggerEvent::Completed, this, &AInterVerseXRPawn::EnhancedTeleportCompleted);
+    Enhanced->BindAction(MenuAction, ETriggerEvent::Started, this, &AInterVerseXRPawn::EnhancedMenuStarted);
 }
 
 void AInterVerseXRPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -134,6 +162,7 @@ void AInterVerseXRPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
     PlayerInputComponent->BindAxis(TEXT("IV_Turn"), this, &AInterVerseXRPawn::InputTurn);
     PlayerInputComponent->BindAction(TEXT("IV_Teleport"), IE_Pressed, this, &AInterVerseXRPawn::InputTeleportPressed);
     PlayerInputComponent->BindAction(TEXT("IV_Teleport"), IE_Released, this, &AInterVerseXRPawn::InputTeleportReleased);
+    PlayerInputComponent->BindAction(TEXT("IV_Menu"), IE_Pressed, this, &AInterVerseXRPawn::ToggleVRMenu);
 }
 
 void AInterVerseXRPawn::Tick(float DeltaSeconds)
@@ -164,6 +193,33 @@ void AInterVerseXRPawn::Tick(float DeltaSeconds)
         if (GuidanceArrow) GuidanceArrow->SetHiddenInGame(true);
         if (GuidanceText) GuidanceText->SetHiddenInGame(true);
     }
+}
+
+bool AInterVerseXRPawn::IsVRMenuVisible() const
+{
+    return VRMenuWidget && VRMenuWidget->IsVisible();
+}
+
+void AInterVerseXRPawn::SetVRMenuVisible(bool bVisible)
+{
+    if (!VRMenuWidget)
+    {
+        return;
+    }
+
+    VRMenuWidget->SetVisibility(bVisible, true);
+    MoveForwardValue = 0.0f;
+    MoveRightValue = 0.0f;
+    if (Locomotion && Locomotion->IsTeleportAiming())
+    {
+        Locomotion->CancelTeleport();
+        ClearTeleportVisual();
+    }
+}
+
+void AInterVerseXRPawn::ToggleVRMenu()
+{
+    SetVRMenuVisible(!IsVRMenuVisible());
 }
 
 void AInterVerseXRPawn::UpdateTeleportVisual()
@@ -278,17 +334,17 @@ void AInterVerseXRPawn::UpdateGuidanceVisual()
 
 void AInterVerseXRPawn::InputMoveForward(float Value)
 {
-    MoveForwardValue = Value;
+    MoveForwardValue = IsVRMenuVisible() ? 0.0f : Value;
 }
 
 void AInterVerseXRPawn::InputMoveRight(float Value)
 {
-    MoveRightValue = Value;
+    MoveRightValue = IsVRMenuVisible() ? 0.0f : Value;
 }
 
 void AInterVerseXRPawn::InputTurn(float Value)
 {
-    if (!Locomotion)
+    if (!Locomotion || IsVRMenuVisible())
     {
         return;
     }
@@ -309,6 +365,15 @@ void AInterVerseXRPawn::InputTurn(float Value)
 
 void AInterVerseXRPawn::InputTeleportPressed()
 {
+    if (IsVRMenuVisible())
+    {
+        if (RightWidgetInteraction)
+        {
+            RightWidgetInteraction->PressPointerKey(EKeys::LeftMouseButton);
+        }
+        return;
+    }
+
     if (Locomotion)
     {
         Locomotion->BeginTeleportAim();
@@ -317,6 +382,15 @@ void AInterVerseXRPawn::InputTeleportPressed()
 
 void AInterVerseXRPawn::InputTeleportReleased()
 {
+    if (IsVRMenuVisible())
+    {
+        if (RightWidgetInteraction)
+        {
+            RightWidgetInteraction->ReleasePointerKey(EKeys::LeftMouseButton);
+        }
+        return;
+    }
+
     if (Locomotion)
     {
         Locomotion->CommitTeleport();
@@ -350,4 +424,12 @@ void AInterVerseXRPawn::EnhancedTeleportStarted(const FInputActionValue& Value)
 void AInterVerseXRPawn::EnhancedTeleportCompleted(const FInputActionValue& Value)
 {
     InputTeleportReleased();
+}
+
+void AInterVerseXRPawn::EnhancedMenuStarted(const FInputActionValue& Value)
+{
+    if (Value.Get<bool>())
+    {
+        ToggleVRMenu();
+    }
 }
