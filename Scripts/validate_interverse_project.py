@@ -15,10 +15,12 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 ANCHORS = ROOT / "Config" / "InterVerseCampusAnchors.json"
+SECTORS = ROOT / "Config" / "InterVerseCampusSectors.json"
 ENGINE = ROOT / "Config" / "DefaultEngine.ini"
 GAME = ROOT / "Config" / "DefaultGame.ini"
 SCALABILITY = ROOT / "Config" / "DefaultScalability.ini"
 UPROJECT = ROOT / "InterVerseSG.uproject"
+BUILDINGS_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseBuildingExtrusionActor.h"
 BUILDINGS_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseBuildingExtrusionActor.cpp"
 FOLIAGE_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseFoliageActor.h"
 FOLIAGE_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseFoliageActor.cpp"
@@ -108,6 +110,47 @@ def validate_anchors() -> None:
         fail("EEGEI longitude differs from project-owner verified coordinate")
 
 
+def validate_sectors() -> None:
+    sector_data = load_json(SECTORS)
+    sectors = sector_data.get("sectors", [])
+    if len(sectors) != 4:
+        fail(f"Quest campus profile currently expects 4 sectors, found {len(sectors)}")
+
+    anchor_data = load_json(ANCHORS)
+    navs = {a.get("navigation_anchor") for a in anchor_data.get("anchors", [])}
+    ids: set[str] = set()
+    covered_priority_navs: set[str] = set()
+
+    for sector in sectors:
+        sector_id = sector.get("id")
+        if not sector_id or not sector_id.startswith("SECTOR_"):
+            fail(f"Invalid sector id: {sector_id}")
+        if sector_id in ids:
+            fail(f"Duplicate sector id: {sector_id}")
+        ids.add(sector_id)
+
+        for key in ("center_x_cm", "center_y_cm", "radius_cm"):
+            if not isinstance(sector.get(key), (int, float)):
+                fail(f"Sector {sector_id} missing numeric {key}")
+        if float(sector["radius_cm"]) < 10000:
+            fail(f"Sector {sector_id} radius is too small for safe Quest preload")
+
+        for nav in sector.get("priority_anchors", []):
+            if nav not in navs:
+                fail(f"Sector {sector_id} references unknown navigation anchor: {nav}")
+            covered_priority_navs.add(nav)
+
+    for nav in ("NAV_MarquisScienceHall", "NAV_CAI", "NAV_CentroEstudiantes", "NAV_EscuelaGraduada"):
+        if nav not in covered_priority_navs:
+            fail(f"Priority navigation anchor is not assigned to a Quest sector: {nav}")
+
+    runtime = sector_data.get("runtime") or {}
+    if float(runtime.get("update_interval_seconds", 0)) < 0.1:
+        fail("Sector update interval must not run at per-frame frequency")
+    if float(runtime.get("active_radius_cm", 0)) <= 0 or float(runtime.get("preload_radius_cm", 0)) <= 0:
+        fail("Sector runtime radii must be positive")
+
+
 def validate_engine_config() -> None:
     if not ENGINE.exists():
         fail("Config/DefaultEngine.ini missing")
@@ -160,16 +203,18 @@ def validate_quest_profile() -> None:
 
 
 def validate_quest_scene_architecture() -> None:
-    for path in (BUILDINGS_CPP, FOLIAGE_H, FOLIAGE_CPP, FOLIAGE_FETCHER, BOOTSTRAP):
+    for path in (BUILDINGS_H, BUILDINGS_CPP, FOLIAGE_H, FOLIAGE_CPP, FOLIAGE_FETCHER, BOOTSTRAP):
         if not path.exists():
             fail(f"Missing Quest optimization source: {path.relative_to(ROOT)}")
 
+    buildings_h = BUILDINGS_H.read_text(encoding="utf-8")
     buildings = BUILDINGS_CPP.read_text(encoding="utf-8")
-    # The campus building batch must be emitted as a single procedural section.
-    require_text(buildings, "CreateMeshSection_LinearColor(\n        0,", "InterVerseBuildingExtrusionActor.cpp")
-    require_text(buildings, "LastMeshSectionCount = 1", "InterVerseBuildingExtrusionActor.cpp")
-    if "CreateMeshSection_LinearColor(SectionIndex" in buildings:
-        fail("Per-building procedural mesh sections reintroduced; this increases Quest draw calls")
+    for token in ("bEnableRuntimeSectorCulling", "ActiveSectorRadiusCm", "SectorUpdateIntervalSeconds", "UpdateSectorVisibility"):
+        require_text(buildings_h, token, "InterVerseBuildingExtrusionActor.h")
+    for token in ("LoadSectorDefinitions", "FindNearestSector", "SetMeshSectionVisible", "SetTimer", "BuiltSectorCentersCm"):
+        require_text(buildings, token, "InterVerseBuildingExtrusionActor.cpp")
+    if "CreateMeshSection_LinearColor(SectionIndex" not in buildings:
+        fail("Quest building sector batching is missing; expected one mesh section per active campus sector")
 
     foliage_h = FOLIAGE_H.read_text(encoding="utf-8")
     foliage_cpp = FOLIAGE_CPP.read_text(encoding="utf-8")
@@ -205,6 +250,7 @@ def main() -> int:
     checks = [
         ("uproject", validate_uproject),
         ("anchors", validate_anchors),
+        ("Quest sectors", validate_sectors),
         ("engine config", validate_engine_config),
         ("Quest profile", validate_quest_profile),
         ("Quest scene architecture", validate_quest_scene_architecture),
