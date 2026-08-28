@@ -4,8 +4,8 @@ Run inside Unreal Editor with Python Editor Script Plugin enabled.
 The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, applies a Quest-safe
 tropical daylight profile, runs the NAV anchor generator, adds verified terrain,
 campus geometry, batched procedural buildings, mapped circulation surfaces,
-Quest-optimized HISM foliage and mapped campus props when available, plus a
-minimal OpenXR pawn.
+mapped green areas, Quest-optimized HISM foliage and campus props when available,
+plus the OpenXR pawn and lightweight Quest navigation HUD.
 """
 
 import json
@@ -182,6 +182,21 @@ def _ensure_surface_actor():
         unreal.log_warning("InterVerseSG campus surface rebuild warning: {}".format(exc))
 
 
+def _ensure_green_area_actor():
+    if not _config_exists("InterVerseGreenAreas.local.json"):
+        unreal.log_warning("InterVerseSG green area data not built yet. Optional: run the campus geometry pipeline.")
+        return
+    actor_class = getattr(unreal, "InterVerseGreenAreaActor", None)
+    if actor_class is None:
+        unreal.log_warning("InterVerseGreenAreaActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
+        return
+    actor = _ensure_actor(actor_class, "IV_CampusGreenAreas", unreal.Vector(0.0, 0.0, 0.0))
+    try:
+        actor.rebuild_green_areas()
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG green area rebuild warning: {}".format(exc))
+
+
 def _ensure_foliage_actor():
     if not _config_exists("InterVerseFoliage.local.json"):
         unreal.log_warning("InterVerseSG foliage data not built yet. Optional: run python Scripts/fetch_osm_foliage.py outside Unreal.")
@@ -230,6 +245,15 @@ def _ensure_xr_pawn():
     unreal.log("InterVerseSG XR Pawn ready at {}".format(pawn.get_actor_location()))
 
 
+def _ensure_vr_navigation_hud():
+    actor_class = getattr(unreal, "InterVerseVRHudActor", None)
+    if actor_class is None:
+        unreal.log_warning("InterVerseVRHudActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
+        return
+    _ensure_actor(actor_class, "IV_VRNavigationHUD", unreal.Vector(0.0, 0.0, 0.0))
+    unreal.log("InterVerseSG Quest navigation HUD ready.")
+
+
 def bootstrap():
     _ensure_level()
     _ensure_environment()
@@ -238,9 +262,11 @@ def bootstrap():
     _ensure_geometry_actor()
     _ensure_building_extrusion_actor()
     _ensure_surface_actor()
+    _ensure_green_area_actor()
     _ensure_foliage_actor()
     _ensure_props_actor()
     _ensure_xr_pawn()
+    _ensure_vr_navigation_hud()
     unreal.EditorLevelLibrary.save_current_level()
     unreal.log("InterVerseSG bootstrap complete: {}".format(LEVEL_PATH))
 
