@@ -4,7 +4,8 @@ Run inside Unreal Editor with Python Editor Script Plugin enabled.
 The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, adds a basic
 lighting rig if missing, runs the NAV anchor generator, adds verified terrain,
 campus geometry, batched procedural buildings, mapped circulation surfaces,
-Quest-optimized HISM foliage when available, and a minimal OpenXR pawn.
+Quest-optimized HISM foliage and mapped campus props when available, plus a
+minimal OpenXR pawn.
 """
 
 import os
@@ -135,12 +136,25 @@ def _ensure_foliage_actor():
         unreal.log_warning("InterVerseFoliageActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
         return
     actor = _ensure_actor(actor_class, "IV_CampusFoliage", unreal.Vector(0.0, 0.0, 0.0))
-    # A lightweight mobile tree Static Mesh still needs to be assigned in the editor.
-    # Rebuild is safe even before that asset is assigned; the actor will log the requirement.
     try:
         actor.rebuild_foliage()
     except Exception as exc:
         unreal.log_warning("InterVerseSG foliage rebuild warning: {}".format(exc))
+
+
+def _ensure_props_actor():
+    if not _config_exists("InterVerseCampusProps.local.json"):
+        unreal.log_warning("InterVerseSG mapped campus props not built yet. Optional: run python Scripts/fetch_osm_campus_props.py outside Unreal.")
+        return
+    actor_class = getattr(unreal, "InterVerseCampusPropsActor", None)
+    if actor_class is None:
+        unreal.log_warning("InterVerseCampusPropsActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
+        return
+    actor = _ensure_actor(actor_class, "IV_CampusProps", unreal.Vector(0.0, 0.0, 0.0))
+    try:
+        actor.rebuild_props()
+    except Exception as exc:
+        unreal.log_warning("InterVerseSG campus props rebuild warning: {}".format(exc))
 
 
 def _find_anchor_location(anchor_name):
@@ -170,6 +184,7 @@ def bootstrap():
     _ensure_building_extrusion_actor()
     _ensure_surface_actor()
     _ensure_foliage_actor()
+    _ensure_props_actor()
     _ensure_xr_pawn()
     unreal.EditorLevelLibrary.save_current_level()
     unreal.log("InterVerseSG bootstrap complete: {}".format(LEVEL_PATH))
