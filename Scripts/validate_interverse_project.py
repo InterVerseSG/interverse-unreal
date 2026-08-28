@@ -1,8 +1,8 @@
 """Cloud-safe validation for InterVerseSG.
 
-This script intentionally does not import Unreal Engine. It validates data and
-configuration that can be checked in GitHub Actions or any normal Python 3
-runtime.
+This script intentionally does not import Unreal Engine. It validates data,
+Quest configuration, cloud endpoints and source-level performance architecture
+that can be checked in GitHub Actions or any normal Python 3 runtime.
 """
 
 from __future__ import annotations
@@ -19,6 +19,11 @@ ENGINE = ROOT / "Config" / "DefaultEngine.ini"
 GAME = ROOT / "Config" / "DefaultGame.ini"
 SCALABILITY = ROOT / "Config" / "DefaultScalability.ini"
 UPROJECT = ROOT / "InterVerseSG.uproject"
+BUILDINGS_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseBuildingExtrusionActor.cpp"
+FOLIAGE_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseFoliageActor.h"
+FOLIAGE_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseFoliageActor.cpp"
+FOLIAGE_FETCHER = ROOT / "Scripts" / "fetch_osm_foliage.py"
+BOOTSTRAP = ROOT / "Scripts" / "bootstrap_interverse_level.py"
 
 EXPECTED_API = "https://interverse-api-yhqx.onrender.com"
 EXPECTED_BUILDER = "https://interverse-builder.onrender.com"
@@ -154,10 +159,39 @@ def validate_quest_profile() -> None:
         require_text(scalability, token, "DefaultScalability.ini")
 
 
+def validate_quest_scene_architecture() -> None:
+    for path in (BUILDINGS_CPP, FOLIAGE_H, FOLIAGE_CPP, FOLIAGE_FETCHER, BOOTSTRAP):
+        if not path.exists():
+            fail(f"Missing Quest optimization source: {path.relative_to(ROOT)}")
+
+    buildings = BUILDINGS_CPP.read_text(encoding="utf-8")
+    # The campus building batch must be emitted as a single procedural section.
+    require_text(buildings, "CreateMeshSection_LinearColor(\n        0,", "InterVerseBuildingExtrusionActor.cpp")
+    require_text(buildings, "LastMeshSectionCount = 1", "InterVerseBuildingExtrusionActor.cpp")
+    if "CreateMeshSection_LinearColor(SectionIndex" in buildings:
+        fail("Per-building procedural mesh sections reintroduced; this increases Quest draw calls")
+
+    foliage_h = FOLIAGE_H.read_text(encoding="utf-8")
+    foliage_cpp = FOLIAGE_CPP.read_text(encoding="utf-8")
+    for token in ("UHierarchicalInstancedStaticMeshComponent", "StartCullDistanceCm", "EndCullDistanceCm"):
+        require_text(foliage_h, token, "InterVerseFoliageActor.h")
+    for token in ("SetCullDistances", "SetCollisionEnabled(ECollisionEnabled::NoCollision)", "AddInstance"):
+        require_text(foliage_cpp, token, "InterVerseFoliageActor.cpp")
+
+    fetcher = FOLIAGE_FETCHER.read_text(encoding="utf-8")
+    require_text(fetcher, 'node["natural"="tree"]', "fetch_osm_foliage.py")
+    require_text(fetcher, '"source": "OpenStreetMap natural=tree"', "fetch_osm_foliage.py")
+
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    require_text(bootstrap, "_ensure_foliage_actor", "bootstrap_interverse_level.py")
+    require_text(bootstrap, "IV_CampusFoliage", "bootstrap_interverse_level.py")
+
+
 def validate_generated_json_if_present() -> None:
     optional_json = [
         ROOT / "Config" / "InterVerseCampusGeometry.local.json",
         ROOT / "Config" / "InterVerseCampusSurfaces.local.json",
+        ROOT / "Config" / "InterVerseFoliage.local.json",
         ROOT / "Data" / "campus_terrain_grid.json",
         ROOT / "Data" / "campus_geometry.geojson",
         ROOT / "Data" / "campus_surfaces.geojson",
@@ -173,6 +207,7 @@ def main() -> int:
         ("anchors", validate_anchors),
         ("engine config", validate_engine_config),
         ("Quest profile", validate_quest_profile),
+        ("Quest scene architecture", validate_quest_scene_architecture),
         ("generated JSON", validate_generated_json_if_present),
     ]
     for name, check in checks:
