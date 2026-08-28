@@ -209,12 +209,36 @@ def validate_quest_scene_architecture() -> None:
 
     buildings_h = BUILDINGS_H.read_text(encoding="utf-8")
     buildings = BUILDINGS_CPP.read_text(encoding="utf-8")
-    for token in ("bEnableRuntimeSectorCulling", "ActiveSectorRadiusCm", "SectorUpdateIntervalSeconds", "UpdateSectorVisibility"):
+    for token in (
+        "bEnableRuntimeSectorCulling",
+        "ActiveSectorRadiusCm",
+        "SectorUpdateIntervalSeconds",
+        "UpdateSectorVisibility",
+        "NearBuildingMaterial",
+        "FarBuildingMaterial",
+        "NearMaterialDistanceCm",
+        "FacadeURepeatCm",
+        "FacadeVRepeatCm",
+    ):
         require_text(buildings_h, token, "InterVerseBuildingExtrusionActor.h")
-    for token in ("LoadSectorDefinitions", "FindNearestSector", "SetMeshSectionVisible", "SetTimer", "BuiltSectorCentersCm"):
+    for token in (
+        "LoadSectorDefinitions",
+        "FindNearestSector",
+        "SetMeshSectionVisible",
+        "SetTimer",
+        "BuiltSectorCentersCm",
+        "SetMaterial",
+        "SectorUsesNearMaterial",
+        "SectorUV0",
+        "SectorColors",
+        "VertexColors.Add",
+        "RoofBase",
+    ):
         require_text(buildings, token, "InterVerseBuildingExtrusionActor.cpp")
-    if "CreateMeshSection_LinearColor(SectionIndex" not in buildings:
+    if "CreateMeshSection_LinearColor(\n            SectionIndex," not in buildings:
         fail("Quest building sector batching is missing; expected one mesh section per active campus sector")
+    if "CreateMeshSection_LinearColor(SectionIndex" in buildings:
+        fail("Legacy per-building procedural section pattern was reintroduced")
 
     foliage_h = FOLIAGE_H.read_text(encoding="utf-8")
     foliage_cpp = FOLIAGE_CPP.read_text(encoding="utf-8")
