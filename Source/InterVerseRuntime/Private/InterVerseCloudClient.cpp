@@ -126,5 +126,14 @@ void UInterVerseCloudClient::TryAutoExecute(const FInterVerseValidatedCommand& C
         return;
     }
 
+    if (bValidatedNavigationStartsGuidance)
+    {
+        if (!Navigation->StartGuidanceToAnchor(Command.NavigationAnchor))
+        {
+            OnCloudError.Broadcast(FString::Printf(TEXT("No se pudo iniciar la guía hacia %s."), *Command.NavigationAnchor));
+        }
+        return;
+    }
+
     Navigation->ExecuteValidatedCommand(Command);
 }
