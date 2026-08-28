@@ -31,58 +31,66 @@ def main() -> int:
         require(BUILD, module)
 
     for token in (
-        "UWidgetComponent",
-        "UWidgetInteractionComponent",
-        "SetVRMenuVisible",
-        "IsVRMenuVisible",
-        "MenuAction",
+        "UWidgetComponent", "UWidgetInteractionComponent", "SetVRMenuVisible",
+        "IsVRMenuVisible", "MenuAction",
     ):
         require(PAWN_H, token)
 
     for token in (
-        "InterVerseVRMenuWidget::StaticClass()",
-        "EWidgetSpace::World",
-        "OculusTouch_Left_X_Click",
-        "OculusTouch_Right_Trigger_Click",
-        "PressPointerKey(EKeys::LeftMouseButton)",
-        "ReleasePointerKey(EKeys::LeftMouseButton)",
+        "InterVerseVRMenuWidget::StaticClass()", "EWidgetSpace::World",
+        "OculusTouch_Left_X_Click", "OculusTouch_Right_Trigger_Click",
+        "PressPointerKey(EKeys::LeftMouseButton)", "ReleasePointerKey(EKeys::LeftMouseButton)",
         "ToggleVRMenu",
     ):
         require(PAWN_CPP, token)
 
-    required_navs = {
-        "NAV_MarquisScienceHall",
-        "NAV_CAI",
-        "NAV_CentroEstudiantes",
-        "NAV_EscuelaGraduada",
-    }
     anchors = json.loads(ANCHORS.read_text(encoding="utf-8"))
-    existing_navs = {a.get("navigation_anchor") for a in anchors.get("anchors", [])}
+    anchor_rows = anchors.get("anchors", [])
+    existing_navs = {a.get("navigation_anchor") for a in anchor_rows}
+    required_navs = {"NAV_MarquisScienceHall", "NAV_CAI", "NAV_CentroEstudiantes", "NAV_EscuelaGraduada"}
     if not required_navs.issubset(existing_navs):
-        raise AssertionError(f"VR menu references missing anchors: {sorted(required_navs - existing_navs)}")
+        raise AssertionError(f"Missing priority anchors: {sorted(required_navs - existing_navs)}")
+    if len(existing_navs) < 10:
+        raise AssertionError("Campus anchor registry unexpectedly small for dynamic Quest menu")
 
     menu_text = MENU_CPP.read_text(encoding="utf-8")
-    for nav in required_navs:
-        if nav not in menu_text:
-            raise AssertionError(f"VR menu does not include required destination {nav}")
-    for token in (
+    dynamic_tokens = (
+        "Config/InterVerseCampusAnchors.json",
+        "TryGetArrayField(TEXT(\"anchors\")",
+        "UComboBoxString",
+        "UEditableTextBox",
+        "RebuildCategoryOptions",
+        "RebuildDestinationOptions",
+        "GuideSelectedDestination",
+        "StopActiveGuidance",
         "StartGuidanceToAnchor",
+        "Edificios académicos",
+        "Servicios estudiantiles",
+        "Biblioteca y recursos",
+        "Estudios graduados",
+        "Deportes",
+        "InterGreen",
+        "InterYellow",
         "IA: Guíame a Escuela Graduada",
         "AskAssistant(Request)",
         "OnCommandValidated.AddDynamic",
         "OnCloudError.AddDynamic",
         "Consultando Gemini y validando con Builder",
-    ):
+    )
+    for token in dynamic_tokens:
         if token not in menu_text:
-            raise AssertionError(f"VR menu AI flow missing token: {token}")
+            raise AssertionError(f"Dynamic Quest menu missing token: {token}")
 
+    require(MENU_H, "TArray<FInterVerseVRMenuDestination> Destinations")
+    require(MENU_H, "UComboBoxString")
+    require(MENU_H, "UEditableTextBox")
     require(CLOUD_H, "bValidatedNavigationStartsGuidance = true")
     require(CLOUD_CPP, "StartGuidanceToAnchor(Command.NavigationAnchor)")
     require(CLOUD_CPP, "Navigation->ExecuteValidatedCommand(Command)")
 
-    print("PASS: Quest VR menu source architecture")
-    print("PASS: runtime UMG + right-controller widget interaction")
-    print("PASS: priority NAV destinations are valid")
+    print(f"PASS: dynamic Quest VR destination registry ({len(existing_navs)} NAV anchors)")
+    print("PASS: categories + text filter + stop guidance")
+    print("PASS: institutional green/yellow runtime UI")
     print("PASS: Gemini -> Builder -> guided Quest navigation")
     return 0
 
