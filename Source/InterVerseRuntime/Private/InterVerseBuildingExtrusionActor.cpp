@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "ProceduralMeshComponent.h"
@@ -90,7 +91,7 @@ void AInterVerseBuildingExtrusionActor::OnConstruction(const FTransform& Transfo
 void AInterVerseBuildingExtrusionActor::BeginPlay()
 {
     Super::BeginPlay();
-    if (bEnableRuntimeSectorCulling && BuiltSectorCentersCm.Num() > 0)
+    if (BuiltSectorCentersCm.Num() > 0)
     {
         UpdateSectorVisibility();
         GetWorldTimerManager().SetTimer(
@@ -108,6 +109,7 @@ void AInterVerseBuildingExtrusionActor::ClearBuildings()
     LastMeshSectionCount = 0;
     BuiltSectorIds.Reset();
     BuiltSectorCentersCm.Reset();
+    SectorUsesNearMaterial.Reset();
     if (ProceduralMesh) ProceduralMesh->ClearAllMeshSections();
 }
 
@@ -180,6 +182,7 @@ void AInterVerseBuildingExtrusionActor::UpdateSectorVisibility()
     const FVector Local = GetActorTransform().InverseTransformPosition(Pawn->GetActorLocation());
     const FVector2D PlayerXY(Local.X, Local.Y);
     const float RadiusSq = ActiveSectorRadiusCm * ActiveSectorRadiusCm;
+    const float NearMaterialSq = NearMaterialDistanceCm * NearMaterialDistanceCm;
     int32 Nearest = INDEX_NONE;
     float NearestDistSq = TNumericLimits<float>::Max();
     bool bAnyVisible = false;
@@ -188,10 +191,21 @@ void AInterVerseBuildingExtrusionActor::UpdateSectorVisibility()
     {
         const float DistSq = FVector2D::DistSquared(PlayerXY, BuiltSectorCentersCm[Section]);
         if (DistSq < NearestDistSq) { NearestDistSq = DistSq; Nearest = Section; }
+
         const bool bVisible = !bEnableRuntimeSectorCulling || DistSq <= RadiusSq;
         ProceduralMesh->SetMeshSectionVisible(Section, bVisible);
         bAnyVisible |= bVisible;
+
+        const bool bUseNear = DistSq <= NearMaterialSq;
+        if (SectorUsesNearMaterial.IsValidIndex(Section) && SectorUsesNearMaterial[Section] != bUseNear)
+        {
+            UMaterialInterface* Desired = bUseNear ? NearBuildingMaterial.Get() : FarBuildingMaterial.Get();
+            if (!Desired) Desired = NearBuildingMaterial ? NearBuildingMaterial.Get() : FarBuildingMaterial.Get();
+            if (Desired) ProceduralMesh->SetMaterial(Section, Desired);
+            SectorUsesNearMaterial[Section] = bUseNear;
+        }
     }
+
     if (!bAnyVisible && Nearest != INDEX_NONE)
     {
         ProceduralMesh->SetMeshSectionVisible(Nearest, true);
@@ -246,8 +260,12 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
 
     TArray<TArray<FVector>> SectorVertices;
     TArray<TArray<int32>> SectorTriangles;
+    TArray<TArray<FVector2D>> SectorUV0;
+    TArray<TArray<FLinearColor>> SectorColors;
     SectorVertices.SetNum(SectorCenters.Num());
     SectorTriangles.SetNum(SectorCenters.Num());
+    SectorUV0.SetNum(SectorCenters.Num());
+    SectorColors.SetNum(SectorCenters.Num());
     int32 BuiltPolygonCount = 0;
 
     auto AppendRing = [&](const TArray<TSharedPtr<FJsonValue>>& RingValues, float BaseZCm, float HeightCm)
@@ -260,11 +278,22 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
         }
         if (Polygon.Num() > 2 && Polygon[0].Equals(Polygon.Last(), 0.1f)) Polygon.Pop();
         if (Polygon.Num() < 3) return;
+
         FVector2D Centroid = FVector2D::ZeroVector;
         for (const FVector2D& P : Polygon) Centroid += P;
         Centroid /= static_cast<float>(Polygon.Num());
         const int32 Sector = FindNearestSector(Centroid, SectorCenters);
-        if (Sector != INDEX_NONE && AppendPolygonGeometry(Polygon, BaseZCm, HeightCm, SectorVertices[Sector], SectorTriangles[Sector])) ++BuiltPolygonCount;
+        if (Sector != INDEX_NONE && AppendPolygonGeometry(
+            Polygon,
+            BaseZCm,
+            HeightCm,
+            SectorVertices[Sector],
+            SectorTriangles[Sector],
+            SectorUV0[Sector],
+            SectorColors[Sector]))
+        {
+            ++BuiltPolygonCount;
+        }
     };
 
     for (const TSharedPtr<FJsonValue>& FeatureValue : *Features)
@@ -276,11 +305,13 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
         Feature->TryGetObjectField(TEXT("properties"), PropertiesPtr);
         const TSharedPtr<FJsonObject> Properties = (PropertiesPtr && PropertiesPtr->IsValid()) ? *PropertiesPtr : nullptr;
         if (!IsBuildingFeature(Properties)) continue;
+
         const TSharedPtr<FJsonObject>* GeometryPtr = nullptr;
         if (!Feature->TryGetObjectField(TEXT("geometry"), GeometryPtr) || !GeometryPtr || !GeometryPtr->IsValid()) continue;
         const TSharedPtr<FJsonObject>& Geometry = *GeometryPtr;
         FString GeometryType;
         if (!Geometry->TryGetStringField(TEXT("type"), GeometryType) || (GeometryType != TEXT("Polygon") && GeometryType != TEXT("MultiPolygon"))) continue;
+
         const float HeightCm = ResolveHeightCm(Properties);
         const float BaseZCm = ResolveBaseZCm(Properties);
         const TArray<TSharedPtr<FJsonValue>>* Coordinates = nullptr;
@@ -307,13 +338,25 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
     for (int32 Sector = 0; Sector < SectorCenters.Num(); ++Sector)
     {
         if (SectorVertices[Sector].Num() == 0 || SectorTriangles[Sector].Num() == 0) continue;
+
         TArray<FVector> Normals;
-        TArray<FVector2D> UV0;
-        TArray<FLinearColor> Colors;
         TArray<FProcMeshTangent> Tangents;
-        ProceduralMesh->CreateMeshSection_LinearColor(SectionIndex, SectorVertices[Sector], SectorTriangles[Sector], Normals, UV0, Colors, Tangents, bCreateCollision);
+        ProceduralMesh->CreateMeshSection_LinearColor(
+            SectionIndex,
+            SectorVertices[Sector],
+            SectorTriangles[Sector],
+            Normals,
+            SectorUV0[Sector],
+            SectorColors[Sector],
+            Tangents,
+            bCreateCollision);
+
+        UMaterialInterface* InitialMaterial = FarBuildingMaterial ? FarBuildingMaterial.Get() : NearBuildingMaterial.Get();
+        if (InitialMaterial) ProceduralMesh->SetMaterial(SectionIndex, InitialMaterial);
+
         BuiltSectorIds.Add(SectorIds.IsValidIndex(Sector) ? SectorIds[Sector] : FString::Printf(TEXT("SECTOR_%d"), Sector));
         BuiltSectorCentersCm.Add(SectorCenters[Sector]);
+        SectorUsesNearMaterial.Add(false);
         ++SectionIndex;
     }
 
@@ -322,29 +365,76 @@ bool AInterVerseBuildingExtrusionActor::ParseAndBuild(const FString& JsonText)
     return BuiltPolygonCount > 0 && SectionIndex > 0;
 }
 
-bool AInterVerseBuildingExtrusionActor::AppendPolygonGeometry(const TArray<FVector2D>& InputPolygon, float BaseZCm, float HeightCm, TArray<FVector>& Vertices, TArray<int32>& Triangles) const
+bool AInterVerseBuildingExtrusionActor::AppendPolygonGeometry(
+    const TArray<FVector2D>& InputPolygon,
+    float BaseZCm,
+    float HeightCm,
+    TArray<FVector>& Vertices,
+    TArray<int32>& Triangles,
+    TArray<FVector2D>& UV0,
+    TArray<FLinearColor>& VertexColors) const
 {
     TArray<FVector2D> Polygon = InputPolygon;
     if (Polygon.Num() < 3) return false;
     if (SignedArea(Polygon) < 0.0f) Algo::Reverse(Polygon);
+
     TArray<int32> RoofTriangles;
     if (!TriangulatePolygon(Polygon, RoofTriangles)) return false;
+
     const int32 Count = Polygon.Num();
-    const int32 VertexBase = Vertices.Num();
-    for (const FVector2D& Point : Polygon) Vertices.Add(FVector(Point.X, Point.Y, BaseZCm));
-    for (const FVector2D& Point : Polygon) Vertices.Add(FVector(Point.X, Point.Y, BaseZCm + HeightCm));
+    const int32 WallBase = Vertices.Num();
+    const float UDiv = FMath::Max(FacadeURepeatCm, 1.0f);
+    const float VDiv = FMath::Max(FacadeVRepeatCm, 1.0f);
+
+    float PerimeterDistance = 0.0f;
+    TArray<float> PerimeterU;
+    PerimeterU.SetNum(Count);
+    for (int32 Index = 0; Index < Count; ++Index)
+    {
+        PerimeterU[Index] = PerimeterDistance / UDiv;
+        PerimeterDistance += FVector2D::Distance(Polygon[Index], Polygon[(Index + 1) % Count]);
+    }
+
+    // Separate wall and roof vertices so UVs and vertex colors can be different without extra material slots.
+    for (int32 Index = 0; Index < Count; ++Index)
+    {
+        const FVector2D& Point = Polygon[Index];
+        Vertices.Add(FVector(Point.X, Point.Y, BaseZCm));
+        UV0.Add(FVector2D(PerimeterU[Index], 0.0f));
+        VertexColors.Add(FLinearColor(0.82f, 0.82f, 0.78f, 1.0f));
+    }
+    for (int32 Index = 0; Index < Count; ++Index)
+    {
+        const FVector2D& Point = Polygon[Index];
+        Vertices.Add(FVector(Point.X, Point.Y, BaseZCm + HeightCm));
+        UV0.Add(FVector2D(PerimeterU[Index], HeightCm / VDiv));
+        VertexColors.Add(FLinearColor(0.82f, 0.82f, 0.78f, 1.0f));
+    }
+
     for (int32 Index = 0; Index < Count; ++Index)
     {
         const int32 Next = (Index + 1) % Count;
-        const int32 B0 = VertexBase + Index, B1 = VertexBase + Next, T0 = VertexBase + Index + Count, T1 = VertexBase + Next + Count;
+        const int32 B0 = WallBase + Index;
+        const int32 B1 = WallBase + Next;
+        const int32 T0 = WallBase + Index + Count;
+        const int32 T1 = WallBase + Next + Count;
         Triangles.Append({B0, B1, T1, B0, T1, T0});
+    }
+
+    const int32 RoofBase = Vertices.Num();
+    for (const FVector2D& Point : Polygon)
+    {
+        Vertices.Add(FVector(Point.X, Point.Y, BaseZCm + HeightCm));
+        UV0.Add(FVector2D(Point.X / UDiv, Point.Y / UDiv));
+        VertexColors.Add(FLinearColor(0.48f, 0.48f, 0.46f, 1.0f));
     }
     for (int32 Index = 0; Index < RoofTriangles.Num(); Index += 3)
     {
-        Triangles.Add(VertexBase + RoofTriangles[Index] + Count);
-        Triangles.Add(VertexBase + RoofTriangles[Index + 1] + Count);
-        Triangles.Add(VertexBase + RoofTriangles[Index + 2] + Count);
+        Triangles.Add(RoofBase + RoofTriangles[Index]);
+        Triangles.Add(RoofBase + RoofTriangles[Index + 1]);
+        Triangles.Add(RoofBase + RoofTriangles[Index + 2]);
     }
+
     return true;
 }
 
@@ -352,8 +442,10 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(const TArray<FVector2
 {
     OutTriangles.Reset();
     if (Polygon.Num() < 3) return false;
+
     TArray<int32> Remaining;
     for (int32 Index = 0; Index < Polygon.Num(); ++Index) Remaining.Add(Index);
+
     int32 SafetyCounter = 0;
     const int32 MaxIterations = Polygon.Num() * Polygon.Num();
     while (Remaining.Num() > 3 && SafetyCounter++ < MaxIterations)
@@ -368,12 +460,14 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(const TArray<FVector2
             const FVector2D& B = Polygon[CurrIndex];
             const FVector2D& C = Polygon[NextIndex];
             if (Cross2D(A, B, C) <= KINDA_SMALL_NUMBER) continue;
+
             bool bContainsOtherPoint = false;
             for (const int32 TestIndex : Remaining)
             {
                 if (TestIndex == PrevIndex || TestIndex == CurrIndex || TestIndex == NextIndex) continue;
                 if (PointInTriangle(Polygon[TestIndex], A, B, C)) { bContainsOtherPoint = true; break; }
             }
+
             if (!bContainsOtherPoint)
             {
                 OutTriangles.Append({PrevIndex, CurrIndex, NextIndex});
@@ -384,6 +478,7 @@ bool AInterVerseBuildingExtrusionActor::TriangulatePolygon(const TArray<FVector2
         }
         if (!bClippedEar) return false;
     }
+
     if (Remaining.Num() == 3)
     {
         OutTriangles.Append({Remaining[0], Remaining[1], Remaining[2]});
