@@ -6,16 +6,8 @@ Run with normal system Python from the repository root:
 Prerequisite for terrain conformity:
     python Scripts/build_campus_terrain.py
 
-Steps:
-1. Download verified building/campus OSM ways listed in Data/campus_geometry_sources.json.
-2. Write Data/campus_geometry.geojson.
-3. Convert WGS84 building geometry to local Unreal centimeters.
-4. Write Config/InterVerseCampusGeometry.local.json.
-5. Query mapped roads, paths, pedestrian ways and parking inside the campus area.
-6. Write Data/campus_surfaces.geojson.
-7. Convert those circulation/surface features to local Unreal centimeters.
-8. Write Config/InterVerseCampusSurfaces.local.json.
-9. If terrain data exists, conform building bases and circulation vertices to terrain Z.
+Builds verified building geometry, circulation surfaces and mapped green areas.
+No missing geometry is invented.
 """
 
 from __future__ import annotations
@@ -40,6 +32,8 @@ def main() -> None:
     run("convert_geojson_to_unreal.py")
     run("fetch_osm_campus_surfaces.py")
     run("convert_surfaces_to_unreal.py")
+    run("fetch_osm_green_areas.py")
+    run("convert_green_areas_to_unreal.py")
 
     if TERRAIN_CONFIG.exists():
         run("apply_terrain_to_geometry.py")
@@ -49,7 +43,7 @@ def main() -> None:
         print("Run python Scripts/build_campus_terrain.py, then rerun this pipeline.")
 
     print("\nInterVerseSG campus geometry pipeline completed successfully.")
-    print("Generated building geometry plus mapped campus roads, paths and parking data.")
+    print("Generated buildings, mapped roads/paths/parking, and mapped green areas.")
     print("Next: open Unreal Editor and rerun bootstrap_interverse_level.py.")
 
 
