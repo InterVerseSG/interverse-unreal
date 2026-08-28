@@ -26,8 +26,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Geometry", meta=(ClampMin="100.0"))
     float FloorHeightCm = 300.0f;
 
+    // Keep collision off for the large visual campus batch on Quest. Navigation and
+    // interaction collision should be supplied by simpler dedicated primitives.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
     bool bCreateCollision = false;
+
+    // All compatible building footprints are merged into one procedural mesh section.
+    // This is intentionally enabled by design for standalone Quest draw-call reduction.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
+    int32 LastBuiltPolygonCount = 0;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Performance")
+    int32 LastMeshSectionCount = 0;
 
     UFUNCTION(BlueprintCallable, CallInEditor, Category="InterVerse")
     bool RebuildBuildings();
@@ -42,15 +52,15 @@ private:
     bool ParseAndBuild(const FString& JsonText);
     float ResolveHeightCm(const TSharedPtr<class FJsonObject>& Properties) const;
     float ResolveBaseZCm(const TSharedPtr<class FJsonObject>& Properties) const;
-    bool BuildPolygonSection(
+
+    bool AppendPolygonGeometry(
         const TArray<FVector2D>& Polygon,
         float BaseZCm,
         float HeightCm,
-        int32 SectionIndex
-    );
+        TArray<FVector>& Vertices,
+        TArray<int32>& Triangles) const;
 
     static bool TriangulatePolygon(
         const TArray<FVector2D>& Polygon,
-        TArray<int32>& OutTriangles
-    );
+        TArray<int32>& OutTriangles);
 };
