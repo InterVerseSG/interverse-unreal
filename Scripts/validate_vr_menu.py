@@ -11,6 +11,8 @@ PAWN_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseXRPawn.h"
 PAWN_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseXRPawn.cpp"
 MENU_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseVRMenuWidget.h"
 MENU_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseVRMenuWidget.cpp"
+CLOUD_H = ROOT / "Source" / "InterVerseRuntime" / "Public" / "InterVerseCloudClient.h"
+CLOUD_CPP = ROOT / "Source" / "InterVerseRuntime" / "Private" / "InterVerseCloudClient.cpp"
 ANCHORS = ROOT / "Config" / "InterVerseCampusAnchors.json"
 
 
@@ -21,7 +23,7 @@ def require(path: pathlib.Path, token: str) -> None:
 
 
 def main() -> int:
-    for path in (BUILD, PAWN_H, PAWN_CPP, MENU_H, MENU_CPP, ANCHORS):
+    for path in (BUILD, PAWN_H, PAWN_CPP, MENU_H, MENU_CPP, CLOUD_H, CLOUD_CPP, ANCHORS):
         if not path.exists():
             raise AssertionError(f"Missing required VR menu file: {path.relative_to(ROOT)}")
 
@@ -63,12 +65,25 @@ def main() -> int:
     for nav in required_navs:
         if nav not in menu_text:
             raise AssertionError(f"VR menu does not include required destination {nav}")
-    if "StartGuidanceToAnchor" not in menu_text:
-        raise AssertionError("VR menu must start guidance rather than teleporting the user immediately")
+    for token in (
+        "StartGuidanceToAnchor",
+        "IA: Guíame a Escuela Graduada",
+        "AskAssistant(Request)",
+        "OnCommandValidated.AddDynamic",
+        "OnCloudError.AddDynamic",
+        "Consultando Gemini y validando con Builder",
+    ):
+        if token not in menu_text:
+            raise AssertionError(f"VR menu AI flow missing token: {token}")
+
+    require(CLOUD_H, "bValidatedNavigationStartsGuidance = true")
+    require(CLOUD_CPP, "StartGuidanceToAnchor(Command.NavigationAnchor)")
+    require(CLOUD_CPP, "Navigation->ExecuteValidatedCommand(Command)")
 
     print("PASS: Quest VR menu source architecture")
     print("PASS: runtime UMG + right-controller widget interaction")
     print("PASS: priority NAV destinations are valid")
+    print("PASS: Gemini -> Builder -> guided Quest navigation")
     return 0
 
 
