@@ -21,7 +21,8 @@ public class InterVerseRuntime : ModuleRules
             "EnhancedInput",
             "UMG",
             "Slate",
-            "SlateCore"
+            "SlateCore",
+            "NavigationSystem"
         });
     }
 }
