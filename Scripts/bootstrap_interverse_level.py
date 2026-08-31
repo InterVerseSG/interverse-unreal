@@ -6,7 +6,7 @@ tropical daylight profile, runs the NAV anchor generator, adds verified terrain,
 campus geometry, batched procedural buildings, mapped circulation surfaces,
 mapped green areas, Quest-optimized HISM foliage and campus props when available,
 creates a campus-sized NavMeshBoundsVolume from verified NAV extents, plus the
-OpenXR pawn and lightweight Quest navigation HUD.
+OpenXR pawn, lightweight Quest navigation HUD and Quest interaction feedback.
 """
 
 import json
@@ -81,12 +81,7 @@ def _ensure_environment():
         float(sun_cfg.get("rotation_yaw", -28.0)),
         float(sun_cfg.get("rotation_roll", 0.0)),
     )
-    sun = _ensure_actor(
-        unreal.DirectionalLight,
-        "IV_DirectionalLight",
-        unreal.Vector(0.0, 0.0, 500.0),
-        sun_rotation,
-    )
+    sun = _ensure_actor(unreal.DirectionalLight, "IV_DirectionalLight", unreal.Vector(0.0, 0.0, 500.0), sun_rotation)
     try:
         sun.set_actor_rotation(sun_rotation, False)
     except Exception:
@@ -277,18 +272,9 @@ def _ensure_navmesh_bounds():
 
     actor = _ensure_actor(nav_class, "IV_NavMeshBounds", unreal.Vector(center_x, center_y, center_z))
     actor.set_actor_location(unreal.Vector(center_x, center_y, center_z), False, False)
-
-    # UE's default NavMeshBoundsVolume brush is approximately a 200 cm cube.
-    # Scaling from half extents keeps the generated volume deterministic without
-    # creating a binary brush asset in GitHub.
     actor.set_actor_scale3d(unreal.Vector(half_x / 100.0, half_y / 100.0, half_height / 100.0))
     actor.tags = [unreal.Name("InterVerseNavMeshBounds"), unreal.Name("QuestOptimized")]
-
-    unreal.log(
-        "InterVerseSG NavMesh bounds ready center=({:.0f},{:.0f},{:.0f}) half=({:.0f},{:.0f},{:.0f}) cm".format(
-            center_x, center_y, center_z, half_x, half_y, half_height
-        )
-    )
+    unreal.log("InterVerseSG NavMesh bounds ready center=({:.0f},{:.0f},{:.0f}) half=({:.0f},{:.0f},{:.0f}) cm".format(center_x, center_y, center_z, half_x, half_y, half_height))
 
 
 def _find_anchor_location(anchor_name):
@@ -318,6 +304,15 @@ def _ensure_vr_navigation_hud():
     unreal.log("InterVerseSG Quest navigation HUD ready.")
 
 
+def _ensure_quest_feedback():
+    actor_class = getattr(unreal, "InterVerseQuestFeedbackActor", None)
+    if actor_class is None:
+        unreal.log_warning("InterVerseQuestFeedbackActor C++ class is unavailable. Compile the project, then rerun the bootstrap.")
+        return
+    _ensure_actor(actor_class, "IV_QuestFeedback", unreal.Vector(0.0, 0.0, 0.0))
+    unreal.log("InterVerseSG Quest interaction/haptic feedback ready.")
+
+
 def bootstrap():
     _ensure_level()
     _ensure_environment()
@@ -332,6 +327,7 @@ def bootstrap():
     _ensure_navmesh_bounds()
     _ensure_xr_pawn()
     _ensure_vr_navigation_hud()
+    _ensure_quest_feedback()
     unreal.EditorLevelLibrary.save_current_level()
     unreal.log("InterVerseSG bootstrap complete: {}".format(LEVEL_PATH))
 
