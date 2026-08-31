@@ -68,15 +68,24 @@ def main() -> int:
 
     for token in (
         "bUseNavMeshGuidance",
-        "GuidanceWaypoints",
-        "FindPathToLocationSynchronously",
+        "GuidanceWaypointAcceptanceCm",
+        "GuidancePathPoints",
+        "GuidancePointIndex",
         "BuildGuidancePath",
-        "UpdateWaypointProgress",
-        "CalculateRemainingPathDistanceCm",
+        "RemainingPathDistanceFrom",
+        "bGuidanceUsingNavMesh",
     ):
-        require(NAV_H if token in {"bUseNavMeshGuidance", "GuidanceWaypoints", "BuildGuidancePath", "UpdateWaypointProgress", "CalculateRemainingPathDistanceCm"} else NAV_CPP, token)
-    require(NAV_CPP, "FindPathToLocationSynchronously")
-    require(NAV_CPP, "Fallback") if False else None
+        require(NAV_H, token)
+
+    for token in (
+        "FindPathToLocationSynchronously",
+        "GuidancePathPoints",
+        "GuidancePointIndex",
+        "RemainingPathDistanceFrom",
+        "bGuidanceUsingNavMesh",
+        "GuidanceWaypointAcceptanceCm",
+    ):
+        require(NAV_CPP, token)
 
     required_nav = {"NAV_MarquisScienceHall", "NAV_CAI", "NAV_CentroEstudiantes", "NAV_EscuelaGraduada"}
     existing = {a.get("navigation_anchor") for a in verified}
