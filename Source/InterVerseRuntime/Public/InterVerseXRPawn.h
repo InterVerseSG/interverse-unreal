@@ -14,6 +14,7 @@ class UInterVerseVRLocomotionComponent;
 class UInputAction;
 class UInputMappingContext;
 class UProceduralMeshComponent;
+class UStaticMeshComponent;
 class UArrowComponent;
 class UTextRenderComponent;
 class UWidgetComponent;
@@ -37,6 +38,11 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|AI") TObjectPtr<UInterVerseCloudClient> CloudClient;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Navigation") TObjectPtr<UInterVerseNavigationComponent> Navigation;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR") TObjectPtr<UInterVerseVRLocomotionComponent> Locomotion;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Controllers") TObjectPtr<UStaticMeshComponent> LeftControllerVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Controllers") TObjectPtr<UStaticMeshComponent> RightControllerVisual;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Controllers") bool bShowFallbackControllerMeshes = true;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals") TObjectPtr<UProceduralMeshComponent> TeleportVisualMesh;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals") TObjectPtr<UArrowComponent> GuidanceArrow;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals") TObjectPtr<UTextRenderComponent> GuidanceText;
@@ -54,6 +60,7 @@ public:
     UFUNCTION(BlueprintPure, Category="InterVerse|VR|Menu") bool IsVRMenuVisible() const;
     UFUNCTION(BlueprintPure, Category="InterVerse|VR|Interaction") bool IsPointerHoveringWidget() const;
     UFUNCTION(BlueprintPure, Category="InterVerse|VR|Interaction") bool IsPointerPressed() const { return bPointerPressed; }
+    UFUNCTION(BlueprintCallable, Category="InterVerse|VR|Controllers") void SetFallbackControllerVisualsEnabled(bool bEnabled);
 
 private:
     void EnsureEnhancedInputMappings();
