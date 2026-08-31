@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "source": "verified InterVerseCampusAnchors.json extents",
+  "bounds": {
+    "margin_xy_cm": 12000,
+    "center_z_cm": 400,
+    "half_height_cm": 2200,
+    "minimum_half_extent_xy_cm": 12000
+  },
+  "guidance": {
+    "waypoint_reached_distance_cm": 180,
+    "fallback": "direct_to_NAV_anchor"
+  },
+  "quest_notes": {
+    "single_bounds_volume": true,
+    "runtime_rebuild_required": false,
+    "purpose": "editor-built pedestrian navigation for Meta Quest guided campus routes"
+  }
+}
