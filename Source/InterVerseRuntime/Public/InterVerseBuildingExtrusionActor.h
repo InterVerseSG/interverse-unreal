@@ -30,8 +30,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Geometry", meta=(ClampMin="100.0"))
     float FloorHeightCm = 300.0f;
 
+    /** Quest keeps collision on only for the four batched building sections so NavMesh routes around buildings. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
-    bool bCreateCollision = false;
+    bool bCreateCollision = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|Performance")
     bool bEnableRuntimeSectorCulling = true;
