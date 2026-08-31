@@ -47,6 +47,7 @@ AInterVerseXRPawn::AInterVerseXRPawn()
     TeleportVisualMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("TeleportVisualMesh"));
     TeleportVisualMesh->SetupAttachment(VROrigin);
     TeleportVisualMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    TeleportVisualMesh->SetCanEverAffectNavigation(false);
     TeleportVisualMesh->SetHiddenInGame(true);
 
     GuidanceArrow = CreateDefaultSubobject<UArrowComponent>(TEXT("GuidanceArrow"));
@@ -77,29 +78,32 @@ AInterVerseXRPawn::AInterVerseXRPawn()
 
     RightWidgetInteraction = CreateDefaultSubobject<UWidgetInteractionComponent>(TEXT("RightWidgetInteraction"));
     RightWidgetInteraction->SetupAttachment(RightController);
-    RightWidgetInteraction->InteractionDistance = 500.0f;
+    RightWidgetInteraction->InteractionDistance = PointerMaxDistanceCm;
     RightWidgetInteraction->InteractionSource = EWidgetInteractionSource::World;
     RightWidgetInteraction->bShowDebug = false;
+
+    RightPointerVisual = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("RightPointerVisual"));
+    RightPointerVisual->SetupAttachment(VROrigin);
+    RightPointerVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    RightPointerVisual->SetCanEverAffectNavigation(false);
+    RightPointerVisual->SetHiddenInGame(true);
 }
 
 void AInterVerseXRPawn::BeginPlay()
 {
     Super::BeginPlay();
     EnsureEnhancedInputMappings();
+    if (RightWidgetInteraction) RightWidgetInteraction->InteractionDistance = PointerMaxDistanceCm;
     SetVRMenuVisible(false);
 }
 
 void AInterVerseXRPawn::EnsureEnhancedInputMappings()
 {
-    if (!bEnableRuntimeQuestMappings)
-    {
-        return;
-    }
+    if (!bEnableRuntimeQuestMappings) return;
 
     if (!RuntimeMappingContext)
     {
         RuntimeMappingContext = NewObject<UInputMappingContext>(this, TEXT("IV_RuntimeQuestMapping"));
-
         MoveForwardAction = NewObject<UInputAction>(this, TEXT("IV_IA_MoveForward"));
         MoveForwardAction->ValueType = EInputActionValueType::Axis1D;
         MoveRightAction = NewObject<UInputAction>(this, TEXT("IV_IA_MoveRight"));
@@ -120,11 +124,7 @@ void AInterVerseXRPawn::EnsureEnhancedInputMappings()
     }
 
     APlayerController* PC = Cast<APlayerController>(GetController());
-    if (!PC || !PC->GetLocalPlayer() || !RuntimeMappingContext)
-    {
-        return;
-    }
-
+    if (!PC || !PC->GetLocalPlayer() || !RuntimeMappingContext) return;
     if (UEnhancedInputLocalPlayerSubsystem* Subsystem = PC->GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
     {
         Subsystem->AddMappingContext(RuntimeMappingContext, 10);
@@ -134,11 +134,7 @@ void AInterVerseXRPawn::EnsureEnhancedInputMappings()
 void AInterVerseXRPawn::BindEnhancedInput(UInputComponent* PlayerInputComponent)
 {
     UEnhancedInputComponent* Enhanced = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-    if (!Enhanced || !MoveForwardAction || !MoveRightAction || !TurnAction || !TeleportAction || !MenuAction)
-    {
-        return;
-    }
-
+    if (!Enhanced || !MoveForwardAction || !MoveRightAction || !TurnAction || !TeleportAction || !MenuAction) return;
     Enhanced->BindAction(MoveForwardAction, ETriggerEvent::Triggered, this, &AInterVerseXRPawn::EnhancedMoveForward);
     Enhanced->BindAction(MoveForwardAction, ETriggerEvent::Completed, this, &AInterVerseXRPawn::EnhancedMoveForward);
     Enhanced->BindAction(MoveRightAction, ETriggerEvent::Triggered, this, &AInterVerseXRPawn::EnhancedMoveRight);
@@ -153,10 +149,8 @@ void AInterVerseXRPawn::BindEnhancedInput(UInputComponent* PlayerInputComponent)
 void AInterVerseXRPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
-
     EnsureEnhancedInputMappings();
     BindEnhancedInput(PlayerInputComponent);
-
     PlayerInputComponent->BindAxis(TEXT("IV_MoveForward"), this, &AInterVerseXRPawn::InputMoveForward);
     PlayerInputComponent->BindAxis(TEXT("IV_MoveRight"), this, &AInterVerseXRPawn::InputMoveRight);
     PlayerInputComponent->BindAxis(TEXT("IV_Turn"), this, &AInterVerseXRPawn::InputTurn);
@@ -177,10 +171,7 @@ void AInterVerseXRPawn::Tick(float DeltaSeconds)
             Locomotion->UpdateTeleportAim();
             UpdateTeleportVisual();
         }
-        else
-        {
-            ClearTeleportVisual();
-        }
+        else ClearTeleportVisual();
     }
 
     if (Navigation && Navigation->IsGuidanceActive())
@@ -193,6 +184,9 @@ void AInterVerseXRPawn::Tick(float DeltaSeconds)
         if (GuidanceArrow) GuidanceArrow->SetHiddenInGame(true);
         if (GuidanceText) GuidanceText->SetHiddenInGame(true);
     }
+
+    if (IsVRMenuVisible()) UpdatePointerVisual();
+    else ClearPointerVisual();
 }
 
 bool AInterVerseXRPawn::IsVRMenuVisible() const
@@ -200,16 +194,25 @@ bool AInterVerseXRPawn::IsVRMenuVisible() const
     return VRMenuWidget && VRMenuWidget->IsVisible();
 }
 
+bool AInterVerseXRPawn::IsPointerHoveringWidget() const
+{
+    return RightWidgetInteraction &&
+        (RightWidgetInteraction->IsOverHitTestVisibleWidget() ||
+         RightWidgetInteraction->IsOverInteractableWidget() ||
+         RightWidgetInteraction->IsOverFocusableWidget());
+}
+
 void AInterVerseXRPawn::SetVRMenuVisible(bool bVisible)
 {
-    if (!VRMenuWidget)
-    {
-        return;
-    }
-
+    if (!VRMenuWidget) return;
     VRMenuWidget->SetVisibility(bVisible, true);
     MoveForwardValue = 0.0f;
     MoveRightValue = 0.0f;
+    if (!bVisible)
+    {
+        bPointerPressed = false;
+        ClearPointerVisual();
+    }
     if (Locomotion && Locomotion->IsTeleportAiming())
     {
         Locomotion->CancelTeleport();
@@ -222,6 +225,58 @@ void AInterVerseXRPawn::ToggleVRMenu()
     SetVRMenuVisible(!IsVRMenuVisible());
 }
 
+void AInterVerseXRPawn::UpdatePointerVisual()
+{
+    if (!RightPointerVisual || !RightController || !RightWidgetInteraction || !IsVRMenuVisible())
+    {
+        ClearPointerVisual();
+        return;
+    }
+
+    const FVector StartWorld = RightController->GetComponentLocation();
+    FVector EndWorld = StartWorld + RightController->GetForwardVector() * PointerMaxDistanceCm;
+    const FHitResult& Hit = RightWidgetInteraction->GetLastHitResult();
+    if (Hit.bBlockingHit) EndWorld = Hit.ImpactPoint;
+
+    const FTransform RootTransform = VROrigin->GetComponentTransform();
+    const FVector A = RootTransform.InverseTransformPosition(StartWorld);
+    const FVector B = RootTransform.InverseTransformPosition(EndWorld);
+    FVector Direction = B - A;
+    if (!Direction.Normalize())
+    {
+        ClearPointerVisual();
+        return;
+    }
+
+    FVector Side = FVector::CrossProduct(Direction, FVector::UpVector);
+    if (!Side.Normalize()) Side = FVector::RightVector;
+    Side *= PointerWidthCm * 0.5f;
+
+    const bool bHover = IsPointerHoveringWidget();
+    const FLinearColor Color = bPointerPressed
+        ? FLinearColor(0.996f, 0.82f, 0.25f, 1.0f)
+        : (bHover ? FLinearColor(0.0f, 0.48f, 0.37f, 1.0f) : FLinearColor(0.88f, 0.94f, 0.92f, 0.92f));
+
+    TArray<FVector> Vertices{A + Side, A - Side, B + Side, B - Side};
+    TArray<int32> Triangles{0, 2, 1, 1, 2, 3};
+    TArray<FVector> Normals;
+    TArray<FVector2D> UV0;
+    TArray<FLinearColor> Colors{Color, Color, Color, Color};
+    TArray<FProcMeshTangent> Tangents;
+    RightPointerVisual->ClearAllMeshSections();
+    RightPointerVisual->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, Colors, Tangents, false);
+    RightPointerVisual->SetHiddenInGame(false);
+}
+
+void AInterVerseXRPawn::ClearPointerVisual()
+{
+    if (RightPointerVisual && !RightPointerVisual->bHiddenInGame)
+    {
+        RightPointerVisual->ClearAllMeshSections();
+        RightPointerVisual->SetHiddenInGame(true);
+    }
+}
+
 void AInterVerseXRPawn::UpdateTeleportVisual()
 {
     if (!TeleportVisualMesh || !Locomotion || !Locomotion->IsTeleportAiming())
@@ -229,7 +284,6 @@ void AInterVerseXRPawn::UpdateTeleportVisual()
         ClearTeleportVisual();
         return;
     }
-
     TArray<FVector> ArcWorld;
     bool bValidDestination = false;
     Locomotion->GetTeleportArcPoints(ArcWorld, bValidDestination);
@@ -243,28 +297,20 @@ void AInterVerseXRPawn::UpdateTeleportVisual()
     TArray<int32> Triangles;
     const FTransform RootTransform = VROrigin->GetComponentTransform();
     const float HalfWidth = TeleportArcWidthCm * 0.5f;
-
     for (int32 Index = 0; Index < ArcWorld.Num() - 1; ++Index)
     {
-        const FVector A = ArcWorld[Index];
-        const FVector B = ArcWorld[Index + 1];
-        FVector Direction = B - A;
-        if (!Direction.Normalize())
-        {
-            continue;
-        }
+        const FVector AWorld = ArcWorld[Index];
+        const FVector BWorld = ArcWorld[Index + 1];
+        FVector Direction = BWorld - AWorld;
+        if (!Direction.Normalize()) continue;
         FVector Side = FVector::CrossProduct(Direction, FVector::UpVector);
-        if (!Side.Normalize())
-        {
-            Side = FVector::RightVector;
-        }
+        if (!Side.Normalize()) Side = FVector::RightVector;
         Side *= HalfWidth;
-
         const int32 Base = Vertices.Num();
-        Vertices.Add(RootTransform.InverseTransformPosition(A + Side));
-        Vertices.Add(RootTransform.InverseTransformPosition(A - Side));
-        Vertices.Add(RootTransform.InverseTransformPosition(B + Side));
-        Vertices.Add(RootTransform.InverseTransformPosition(B - Side));
+        Vertices.Add(RootTransform.InverseTransformPosition(AWorld + Side));
+        Vertices.Add(RootTransform.InverseTransformPosition(AWorld - Side));
+        Vertices.Add(RootTransform.InverseTransformPosition(BWorld + Side));
+        Vertices.Add(RootTransform.InverseTransformPosition(BWorld - Side));
         Triangles.Append({Base, Base + 2, Base + 1, Base + 1, Base + 2, Base + 3});
     }
 
@@ -281,10 +327,7 @@ void AInterVerseXRPawn::UpdateTeleportVisual()
             const FVector PWorld = CenterWorld + FVector(FMath::Cos(Angle) * TeleportMarkerRadiusCm, FMath::Sin(Angle) * TeleportMarkerRadiusCm, 0.0f);
             Vertices.Add(RootTransform.InverseTransformPosition(PWorld));
         }
-        for (int32 I = 0; I < Segments; ++I)
-        {
-            Triangles.Append({CenterIndex, CenterIndex + I + 1, CenterIndex + I + 2});
-        }
+        for (int32 I = 0; I < Segments; ++I) Triangles.Append({CenterIndex, CenterIndex + I + 1, CenterIndex + I + 2});
     }
 
     TArray<FVector> Normals;
@@ -307,24 +350,15 @@ void AInterVerseXRPawn::ClearTeleportVisual()
 
 void AInterVerseXRPawn::UpdateGuidanceVisual()
 {
-    if (!Navigation || !Navigation->IsGuidanceActive() || !Camera || !GuidanceArrow || !GuidanceText)
-    {
-        return;
-    }
-
+    if (!Navigation || !Navigation->IsGuidanceActive() || !Camera || !GuidanceArrow || !GuidanceText) return;
     FVector Direction = Navigation->GetGuidanceDirection();
     Direction.Z = 0.0f;
-    if (!Direction.Normalize())
-    {
-        return;
-    }
-
+    if (!Direction.Normalize()) return;
     const float TargetYaw = Direction.Rotation().Yaw;
     const float CameraYaw = Camera->GetComponentRotation().Yaw;
     const float RelativeYaw = FMath::FindDeltaAngleDegrees(CameraYaw, TargetYaw);
     GuidanceArrow->SetRelativeRotation(FRotator(0.0f, RelativeYaw, 0.0f));
     GuidanceArrow->SetHiddenInGame(false);
-
     const float DistanceMeters = Navigation->GetGuidanceDistanceCm() / 100.0f;
     FString Name = Navigation->GetGuidanceAnchor();
     Name.RemoveFromStart(TEXT("NAV_"));
@@ -332,23 +366,12 @@ void AInterVerseXRPawn::UpdateGuidanceVisual()
     GuidanceText->SetHiddenInGame(false);
 }
 
-void AInterVerseXRPawn::InputMoveForward(float Value)
-{
-    MoveForwardValue = IsVRMenuVisible() ? 0.0f : Value;
-}
-
-void AInterVerseXRPawn::InputMoveRight(float Value)
-{
-    MoveRightValue = IsVRMenuVisible() ? 0.0f : Value;
-}
+void AInterVerseXRPawn::InputMoveForward(float Value) { MoveForwardValue = IsVRMenuVisible() ? 0.0f : Value; }
+void AInterVerseXRPawn::InputMoveRight(float Value) { MoveRightValue = IsVRMenuVisible() ? 0.0f : Value; }
 
 void AInterVerseXRPawn::InputTurn(float Value)
 {
-    if (!Locomotion || IsVRMenuVisible())
-    {
-        return;
-    }
-
+    if (!Locomotion || IsVRMenuVisible()) return;
     if (FMath::Abs(Value) >= 0.7f)
     {
         if (!bTurnLatched)
@@ -357,40 +380,28 @@ void AInterVerseXRPawn::InputTurn(float Value)
             bTurnLatched = true;
         }
     }
-    else if (FMath::Abs(Value) <= 0.25f)
-    {
-        bTurnLatched = false;
-    }
+    else if (FMath::Abs(Value) <= 0.25f) bTurnLatched = false;
 }
 
 void AInterVerseXRPawn::InputTeleportPressed()
 {
     if (IsVRMenuVisible())
     {
-        if (RightWidgetInteraction)
-        {
-            RightWidgetInteraction->PressPointerKey(EKeys::LeftMouseButton);
-        }
+        bPointerPressed = true;
+        if (RightWidgetInteraction) RightWidgetInteraction->PressPointerKey(EKeys::LeftMouseButton);
         return;
     }
-
-    if (Locomotion)
-    {
-        Locomotion->BeginTeleportAim();
-    }
+    if (Locomotion) Locomotion->BeginTeleportAim();
 }
 
 void AInterVerseXRPawn::InputTeleportReleased()
 {
     if (IsVRMenuVisible())
     {
-        if (RightWidgetInteraction)
-        {
-            RightWidgetInteraction->ReleasePointerKey(EKeys::LeftMouseButton);
-        }
+        if (RightWidgetInteraction) RightWidgetInteraction->ReleasePointerKey(EKeys::LeftMouseButton);
+        bPointerPressed = false;
         return;
     }
-
     if (Locomotion)
     {
         Locomotion->CommitTeleport();
@@ -398,38 +409,9 @@ void AInterVerseXRPawn::InputTeleportReleased()
     }
 }
 
-void AInterVerseXRPawn::EnhancedMoveForward(const FInputActionValue& Value)
-{
-    InputMoveForward(Value.Get<float>());
-}
-
-void AInterVerseXRPawn::EnhancedMoveRight(const FInputActionValue& Value)
-{
-    InputMoveRight(Value.Get<float>());
-}
-
-void AInterVerseXRPawn::EnhancedTurn(const FInputActionValue& Value)
-{
-    InputTurn(Value.Get<float>());
-}
-
-void AInterVerseXRPawn::EnhancedTeleportStarted(const FInputActionValue& Value)
-{
-    if (Value.Get<bool>())
-    {
-        InputTeleportPressed();
-    }
-}
-
-void AInterVerseXRPawn::EnhancedTeleportCompleted(const FInputActionValue& Value)
-{
-    InputTeleportReleased();
-}
-
-void AInterVerseXRPawn::EnhancedMenuStarted(const FInputActionValue& Value)
-{
-    if (Value.Get<bool>())
-    {
-        ToggleVRMenu();
-    }
-}
+void AInterVerseXRPawn::EnhancedMoveForward(const FInputActionValue& Value) { InputMoveForward(Value.Get<float>()); }
+void AInterVerseXRPawn::EnhancedMoveRight(const FInputActionValue& Value) { InputMoveRight(Value.Get<float>()); }
+void AInterVerseXRPawn::EnhancedTurn(const FInputActionValue& Value) { InputTurn(Value.Get<float>()); }
+void AInterVerseXRPawn::EnhancedTeleportStarted(const FInputActionValue& Value) { if (Value.Get<bool>()) InputTeleportPressed(); }
+void AInterVerseXRPawn::EnhancedTeleportCompleted(const FInputActionValue& Value) { InputTeleportReleased(); }
+void AInterVerseXRPawn::EnhancedMenuStarted(const FInputActionValue& Value) { if (Value.Get<bool>()) ToggleVRMenu(); }
