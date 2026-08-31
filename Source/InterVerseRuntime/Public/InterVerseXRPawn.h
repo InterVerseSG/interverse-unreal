@@ -26,55 +26,34 @@ class INTERVERSERUNTIME_API AInterVerseXRPawn : public APawn
 
 public:
     AInterVerseXRPawn();
-
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual void Tick(float DeltaSeconds) override;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR")
-    TObjectPtr<USceneComponent> VROrigin;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR")
-    TObjectPtr<UCameraComponent> Camera;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR")
-    TObjectPtr<UMotionControllerComponent> LeftController;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR")
-    TObjectPtr<UMotionControllerComponent> RightController;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|AI")
-    TObjectPtr<UInterVerseCloudClient> CloudClient;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Navigation")
-    TObjectPtr<UInterVerseNavigationComponent> Navigation;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR")
-    TObjectPtr<UInterVerseVRLocomotionComponent> Locomotion;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
-    TObjectPtr<UProceduralMeshComponent> TeleportVisualMesh;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
-    TObjectPtr<UArrowComponent> GuidanceArrow;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals")
-    TObjectPtr<UTextRenderComponent> GuidanceText;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Menu")
-    TObjectPtr<UWidgetComponent> VRMenuWidget;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Menu")
-    TObjectPtr<UWidgetInteractionComponent> RightWidgetInteraction;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Interaction")
-    TObjectPtr<UProceduralMeshComponent> RightPointerVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR") TObjectPtr<USceneComponent> VROrigin;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR") TObjectPtr<UCameraComponent> Camera;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR") TObjectPtr<UMotionControllerComponent> LeftController;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|XR") TObjectPtr<UMotionControllerComponent> RightController;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|AI") TObjectPtr<UInterVerseCloudClient> CloudClient;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|Navigation") TObjectPtr<UInterVerseNavigationComponent> Navigation;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR") TObjectPtr<UInterVerseVRLocomotionComponent> Locomotion;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals") TObjectPtr<UProceduralMeshComponent> TeleportVisualMesh;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals") TObjectPtr<UArrowComponent> GuidanceArrow;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Visuals") TObjectPtr<UTextRenderComponent> GuidanceText;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Menu") TObjectPtr<UWidgetComponent> VRMenuWidget;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Menu") TObjectPtr<UWidgetInteractionComponent> RightWidgetInteraction;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="InterVerse|VR|Interaction") TObjectPtr<UProceduralMeshComponent> RightPointerVisual;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|XR|Input")
-    bool bEnableRuntimeQuestMappings = true;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals")
-    float TeleportArcWidthCm = 3.0f;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals")
-    float TeleportMarkerRadiusCm = 22.0f;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Interaction", meta=(ClampMin="0.1"))
-    float PointerWidthCm = 0.7f;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Interaction", meta=(ClampMin="100.0"))
-    float PointerMaxDistanceCm = 500.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|XR|Input") bool bEnableRuntimeQuestMappings = true;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals") float TeleportArcWidthCm = 3.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Visuals") float TeleportMarkerRadiusCm = 22.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Interaction", meta=(ClampMin="0.1")) float PointerWidthCm = 0.7f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="InterVerse|VR|Interaction", meta=(ClampMin="100.0")) float PointerMaxDistanceCm = 500.0f;
 
-    UFUNCTION(BlueprintCallable, Category="InterVerse|VR|Menu")
-    void SetVRMenuVisible(bool bVisible);
-    UFUNCTION(BlueprintPure, Category="InterVerse|VR|Menu")
-    bool IsVRMenuVisible() const;
-    UFUNCTION(BlueprintPure, Category="InterVerse|VR|Interaction")
-    bool IsPointerHoveringWidget() const;
+    UFUNCTION(BlueprintCallable, Category="InterVerse|VR|Menu") void SetVRMenuVisible(bool bVisible);
+    UFUNCTION(BlueprintPure, Category="InterVerse|VR|Menu") bool IsVRMenuVisible() const;
+    UFUNCTION(BlueprintPure, Category="InterVerse|VR|Interaction") bool IsPointerHoveringWidget() const;
+    UFUNCTION(BlueprintPure, Category="InterVerse|VR|Interaction") bool IsPointerPressed() const { return bPointerPressed; }
 
 private:
     void EnsureEnhancedInputMappings();
@@ -107,4 +86,5 @@ private:
     float MoveForwardValue = 0.0f;
     float MoveRightValue = 0.0f;
     bool bTurnLatched = false;
+    bool bPointerPressed = false;
 };
