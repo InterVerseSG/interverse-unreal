@@ -5,7 +5,8 @@ The script creates/opens /Game/Maps/LV_InterVerse_SanGerman, applies a Quest-saf
 tropical daylight profile, runs the NAV anchor generator, adds verified terrain,
 campus geometry, batched procedural buildings, mapped circulation surfaces,
 mapped green areas, Quest-optimized HISM foliage and campus props when available,
-plus the OpenXR pawn and lightweight Quest navigation HUD.
+creates a campus-sized NavMeshBoundsVolume from verified NAV extents, plus the
+OpenXR pawn and lightweight Quest navigation HUD.
 """
 
 import json
@@ -14,6 +15,8 @@ import unreal
 
 LEVEL_PATH = "/Game/Maps/LV_InterVerse_SanGerman"
 ENV_PROFILE = os.path.join(unreal.Paths.project_dir(), "Config", "InterVerseQuestEnvironment.json")
+ANCHORS_PROFILE = os.path.join(unreal.Paths.project_dir(), "Config", "InterVerseCampusAnchors.json")
+NAV_PROFILE = os.path.join(unreal.Paths.project_dir(), "Config", "InterVerseQuestNavigation.json")
 
 
 def _actor_with_label(label):
@@ -45,15 +48,19 @@ def _safe_set(obj, name, value):
         return False
 
 
-def _load_environment_profile():
-    if not os.path.exists(ENV_PROFILE):
+def _load_json(path):
+    if not os.path.exists(path):
         return {}
     try:
-        with open(ENV_PROFILE, "r", encoding="utf-8") as handle:
+        with open(path, "r", encoding="utf-8") as handle:
             return json.load(handle)
     except Exception as exc:
-        unreal.log_warning("InterVerseSG environment profile could not be read: {}".format(exc))
+        unreal.log_warning("InterVerseSG JSON could not be read {}: {}".format(path, exc))
         return {}
+
+
+def _load_environment_profile():
+    return _load_json(ENV_PROFILE)
 
 
 def _ensure_level():
@@ -227,6 +234,63 @@ def _ensure_props_actor():
         unreal.log_warning("InterVerseSG campus props rebuild warning: {}".format(exc))
 
 
+def _verified_anchor_extents_cm():
+    data = _load_json(ANCHORS_PROFILE)
+    points = []
+    for anchor in data.get("anchors", []):
+        if anchor.get("coordinate_status") != "verified":
+            continue
+        x = anchor.get("unreal_x_cm")
+        y = anchor.get("unreal_y_cm")
+        if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+            points.append((float(x), float(y)))
+    if not points:
+        return None
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), max(xs), min(ys), max(ys)
+
+
+def _ensure_navmesh_bounds():
+    extents = _verified_anchor_extents_cm()
+    if not extents:
+        unreal.log_warning("InterVerseSG NavMesh bounds skipped: no verified anchor extents available.")
+        return
+
+    profile = _load_json(NAV_PROFILE)
+    bounds_cfg = profile.get("bounds", {})
+    margin = float(bounds_cfg.get("margin_xy_cm", 12000.0))
+    min_half = float(bounds_cfg.get("minimum_half_extent_xy_cm", 12000.0))
+    center_z = float(bounds_cfg.get("center_z_cm", 400.0))
+    half_height = float(bounds_cfg.get("half_height_cm", 2200.0))
+
+    min_x, max_x, min_y, max_y = extents
+    center_x = (min_x + max_x) * 0.5
+    center_y = (min_y + max_y) * 0.5
+    half_x = max(min_half, (max_x - min_x) * 0.5 + margin)
+    half_y = max(min_half, (max_y - min_y) * 0.5 + margin)
+
+    nav_class = getattr(unreal, "NavMeshBoundsVolume", None)
+    if nav_class is None:
+        unreal.log_warning("NavMeshBoundsVolume class unavailable; create IV_NavMeshBounds manually in Unreal Editor.")
+        return
+
+    actor = _ensure_actor(nav_class, "IV_NavMeshBounds", unreal.Vector(center_x, center_y, center_z))
+    actor.set_actor_location(unreal.Vector(center_x, center_y, center_z), False, False)
+
+    # UE's default NavMeshBoundsVolume brush is approximately a 200 cm cube.
+    # Scaling from half extents keeps the generated volume deterministic without
+    # creating a binary brush asset in GitHub.
+    actor.set_actor_scale3d(unreal.Vector(half_x / 100.0, half_y / 100.0, half_height / 100.0))
+    actor.tags = [unreal.Name("InterVerseNavMeshBounds"), unreal.Name("QuestOptimized")]
+
+    unreal.log(
+        "InterVerseSG NavMesh bounds ready center=({:.0f},{:.0f},{:.0f}) half=({:.0f},{:.0f},{:.0f}) cm".format(
+            center_x, center_y, center_z, half_x, half_y, half_height
+        )
+    )
+
+
 def _find_anchor_location(anchor_name):
     for actor in unreal.EditorLevelLibrary.get_all_level_actors():
         if anchor_name in [str(tag) for tag in actor.tags]:
@@ -265,6 +329,7 @@ def bootstrap():
     _ensure_green_area_actor()
     _ensure_foliage_actor()
     _ensure_props_actor()
+    _ensure_navmesh_bounds()
     _ensure_xr_pawn()
     _ensure_vr_navigation_hud()
     unreal.EditorLevelLibrary.save_current_level()
