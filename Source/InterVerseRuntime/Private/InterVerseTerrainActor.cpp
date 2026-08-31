@@ -13,6 +13,7 @@ AInterVerseTerrainActor::AInterVerseTerrainActor()
     TerrainMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("TerrainMesh"));
     SetRootComponent(TerrainMesh);
     TerrainMesh->SetMobility(EComponentMobility::Static);
+    TerrainMesh->SetCanEverAffectNavigation(true);
 }
 
 void AInterVerseTerrainActor::OnConstruction(const FTransform& Transform)
